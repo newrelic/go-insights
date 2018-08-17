@@ -175,8 +175,6 @@ func (c *QueryClient) parseQueryResponse(response *http.Response) (*QueryRespons
 
 	c.Logger.Debugf("Response %d body: %s", response.StatusCode, body)
 
-	fmt.Println(string(body))
-
 	parsedResponse := &QueryResponse{}
 
 	if jsonErr := json.Unmarshal(body, parsedResponse); jsonErr != nil {
