@@ -7,7 +7,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/newrelic-experts/go-insights/client"
+	"github.com/newrelic/go-insights/client"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 

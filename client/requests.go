@@ -93,44 +93,56 @@ func gZipBuffer(body []byte) (io.Reader, error) {
 }
 
 func (c *QueryClient) queryRequest(nrqlQuery string) (*QueryResponse, error) {
+
 	if len(c.URL.RawQuery) < 1 {
 		return nil, fmt.Errorf("Query string can not be empty")
 	}
 
 	request, reqErr := http.NewRequest("GET", c.URL.String(), nil)
 	if reqErr != nil {
-		return nil, fmt.Errorf("failed to construct request for: %s", nrqlQuery)
+		return nil, fmt.Errorf("Failed to construct request for: %s", nrqlQuery)
 	}
 
 	request.Header.Add("Accept", "application/json")
 	request.Header.Add("X-Query-Key", c.QueryKey)
 
 	client := &http.Client{Timeout: c.RequestTimeout}
+
 	response, respErr := client.Do(request)
+
 	if respErr != nil {
-		return nil, fmt.Errorf("failed query request for: %v", respErr)
+		return nil, fmt.Errorf("Failed query request for: %v", respErr)
 	}
+
 	defer response.Body.Close()
 
 	queryResult, parseErr := c.parseQueryResponse(response)
+
 	if parseErr != nil {
-		return nil, fmt.Errorf("Faild query: %v", parseErr)
+		return nil, fmt.Errorf("Failed query: %v", parseErr)
 	}
 
 	return queryResult, nil
 }
 
 func (c *InsertClient) parseResponse(response *http.Response) error {
+
 	body, readErr := ioutil.ReadAll(response.Body)
+
 	if readErr != nil {
-		return fmt.Errorf("failed to read response body: %s", readErr.Error())
+		return fmt.Errorf("Failed to read response body: %s", readErr.Error())
+	}
+
+	if response.StatusCode != 200 {
+		return fmt.Errorf("Bad response from Insights: %d \n\t%s", response.StatusCode, string(body))
 	}
 
 	c.Logger.Debugf("Response %d body: %s", response.StatusCode, body)
 
 	respJSON := insightsResponse{}
+
 	if err := json.Unmarshal(body, &respJSON); err != nil {
-		return fmt.Errorf("failed to unmarshal insights response: %v", err)
+		return fmt.Errorf("Failed to unmarshal insights response: %v", err)
 	}
 
 	// Success
@@ -154,23 +166,19 @@ func (c *QueryClient) generateQueryURL(nrqlQuery string) {
 }
 
 func (c *QueryClient) parseQueryResponse(response *http.Response) (*QueryResponse, error) {
+
 	body, readErr := ioutil.ReadAll(response.Body)
+
 	if readErr != nil {
 		return nil, fmt.Errorf("failed to read response body: %s", readErr.Error())
 	}
 
 	c.Logger.Debugf("Response %d body: %s", response.StatusCode, body)
 
-	if response.StatusCode != 200 {
-		//attempt to get the body
-		message := &insightsResponse{}
-		if jsonErr := json.Unmarshal(body, message); jsonErr == nil {
-			return nil, fmt.Errorf("Insights error: %s, %s", response.Status, message.Error)
-		}
-		return nil, fmt.Errorf("Insights error: %s", response.Status)
-	}
+	fmt.Println(string(body))
 
 	parsedResponse := &QueryResponse{}
+
 	if jsonErr := json.Unmarshal(body, parsedResponse); jsonErr != nil {
 		return nil, fmt.Errorf("Unable to unmarshal query response: %v", jsonErr)
 	}

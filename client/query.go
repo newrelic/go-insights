@@ -18,21 +18,22 @@ type QueryClient struct {
 // QueryResponse used to decode the JSON response from Insights
 type QueryResponse struct {
 	Results  []map[string]interface{} `json:"results"`
+	Facets   []map[string]interface{} `json:"facets"`
 	Metadata QueryMetadata            `json:"metadata"`
 }
 
 // QueryMetadata used to decode the JSON response metadata from Insights
 type QueryMetadata struct {
-	Contents        []interface{} `json:"contents"`
-	EventType       string        `json:"eventType"`
-	OpenEnded       bool          `json:"openEnded"`
-	BeginTime       time.Time     `json:"beginTime"`
-	EndTime         time.Time     `json:"endTime"`
-	BeginTimeMillis int64         `json:"beginTimeMillis"`
-	EndTimeMillis   int64         `json:"endTimeMillis"`
-	RawSince        string        `json:"rawSince"`
-	RawUntil        string        `json:"rawUntil"`
-	RawCompareWith  string        `json:"rawCompareWith"`
+	Contents        interface{} `json:"contents"`
+	EventType       string      `json:"eventType"`
+	OpenEnded       bool        `json:"openEnded"`
+	BeginTime       time.Time   `json:"beginTime"`
+	EndTime         time.Time   `json:"endTime"`
+	BeginTimeMillis int64       `json:"beginTimeMillis"`
+	EndTimeMillis   int64       `json:"endTimeMillis"`
+	RawSince        string      `json:"rawSince"`
+	RawUntil        string      `json:"rawUntil"`
+	RawCompareWith  string      `json:"rawCompareWith"`
 }
 
 // NewQueryClient makes a new client for the user to query with.
@@ -43,7 +44,7 @@ func NewQueryClient(queryKey, accountID string) *QueryClient {
 	client.Logger = log.New()
 
 	// Defaults
-	client.RequestTimeout = 10 * time.Second
+	client.RequestTimeout = 20 * time.Second
 	client.RetryCount = 3
 	client.RetryWait = 5 * time.Second
 

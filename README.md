@@ -56,7 +56,7 @@ package main
 import (
   "fmt"
 
-  insights "github.com/newrelic-experts/go-insights/client"
+  insights "github.com/newrelic/go-insights/client"
 )
 
 type TestType struct {
@@ -92,7 +92,7 @@ import (
   "fmt"
   "time"
 
-  insights "github.com/newrelic-experts/go-insights/client"
+  insights "github.com/newrelic/go-insights/client"
 )
 
 type TestType struct {
@@ -129,4 +129,3 @@ func main() {
   client.Flush()
 }
 ```
-
