@@ -114,6 +114,11 @@ func (c *QueryClient) queryRequest(nrqlQuery string) (*QueryResponse, error) {
 		return nil, fmt.Errorf("Failed query request for: %v", respErr)
 	}
 
+	if response.StatusCode != 200 {
+		resp, _ := ioutil.ReadAll(response.Body)
+		return nil, fmt.Errorf("insights error: %s", string(resp))
+	}
+
 	defer response.Body.Close()
 
 	queryResult, parseErr := c.parseQueryResponse(response)
