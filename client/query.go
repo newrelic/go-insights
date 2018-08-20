@@ -38,6 +38,9 @@ type QueryMetadata struct {
 
 // NewQueryClient makes a new client for the user to query with.
 func NewQueryClient(queryKey, accountID string) *QueryClient {
+	if len(queryKey) < 1 || len(accountID) < 1 {
+		panic(fmt.Errorf("go-insights> query key: (%s) - account ID: (%s) invalid arguments", queryKey, accountID))
+	}
 	client := &QueryClient{}
 	client.URL = createQueryURL(accountID)
 	client.QueryKey = queryKey
