@@ -7,8 +7,8 @@ New Relic has open-sourced this integration to enable monitoring of this technol
 ## Contents
 
 There are two parts to this library:
-* The [command line client](#CLI) is a compiled standalone binary that can be executed to insert or query Newrelic Insights.
-* The [insights Go library](#insights-client-library) can be used in a go project for posting to and querying events from insights.
+* The [Command Line Interface](#cli) is a compiled standalone binary that can be executed to insert or query Newrelic Insights.
+* The [Insights Client Library](#insights-client-library) can be used in a go project for posting to and querying events from insights.
 
 ## CLI
 
