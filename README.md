@@ -1,8 +1,14 @@
 # New Relic Insights Client
 A Go library for interacting with insights.
-There are two parts to this library, the command line client and the go library.
-The command line client is a compiled standalone binary that can be executed to insert or query Newrelic Insights.
-The insights go library can be used in a go project for posting to and querying events from insights.
+
+## Disclaimer
+New Relic has open-sourced this integration to enable monitoring of this technology. This integration is provided AS-IS WITHOUT WARRANTY OR SUPPORT, although you can report issues and contribute to this integration via GitHub. Support for this integration is available with an [Expert Services subscription](newrelic.com/expertservices).
+
+## Contents
+
+There are two parts to this library:
+* The [command line client](#CLI) is a compiled standalone binary that can be executed to insert or query Newrelic Insights.
+* The [insights Go library](#insights-client-library) can be used in a go project for posting to and querying events from insights.
 
 ## CLI
 
