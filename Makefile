@@ -4,7 +4,7 @@ GO_PKGS      := $(shell go list ./... | grep -v "/vendor/")
 GO_FILES     := $(shell ls ./*.go)
 BUILD_DIR    := ./bin/
 COVERAGE_DIR := ./coverage/
-VALIDATE_DEPS = github.com/golang/lint/golint
+VALIDATE_DEPS = golang.org/x/lint/golint
 DEPS          = github.com/kardianos/govendor
 TEST_DEPS     = github.com/axw/gocov/gocov github.com/AlekSi/gocov-xml
 

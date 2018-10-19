@@ -44,7 +44,7 @@ func main() {
 	case "insert":
 		cli := client.NewInsertClient(*insightsKey, *accountID)
 		if cli == nil {
-			log.Fatal("Failed to create a %s client", cmd)
+			log.Fatal("Failed to create a cli client")
 		}
 		if len(*insightsURL) > 0 {
 			cli.UseCustomURL(*insightsURL)
