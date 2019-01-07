@@ -5,6 +5,17 @@
 
 ## Usage
 
+```go
+const (
+	// DefaultQueryRequestTimeout is the amount of seconds to wait for a query response by default
+	DefaultQueryRequestTimeout time.Duration = 20 * time.Second
+	// DefaultQueryRetries is how many times to attempt the query by default
+	DefaultQueryRetries int = 3
+	// DefaultQueryRetryWaitTime is the amount of seconds between query attempts
+	DefaultQueryRetryWaitTime time.Duration = 5 * time.Second
+)
+```
+
 #### type Client
 
 ```go
@@ -140,7 +151,7 @@ NewQueryClient makes a new client for the user to query with.
 #### func (*QueryClient) QueryEvents
 
 ```go
-func (c *QueryClient) QueryEvents(nrqlQuery string) (*QueryResponse, error)
+func (c *QueryClient) QueryEvents(nrqlQuery string) (response *QueryResponse, err error)
 ```
 QueryEvents initiates an Insights query, returns a response for parsing
 

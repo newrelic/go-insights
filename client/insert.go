@@ -360,9 +360,9 @@ func (c *InsertClient) jsonPostRequest(body []byte) (err error) {
 		return fmt.Errorf("%s: %v", prependText, respErr)
 	}
 	defer func() {
-		err = resp.Body.Close()
-		if err != nil {
-			return
+		respErr = resp.Body.Close()
+		if respErr != nil && err == nil {
+			err = respErr // Don't mask previous errors
 		}
 	}()
 

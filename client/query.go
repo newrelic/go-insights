@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -39,6 +40,15 @@ type QueryMetadata struct {
 	RawCompareWith  string      `json:"rawCompareWith"`
 }
 
+const (
+	// DefaultQueryRequestTimeout is the amount of seconds to wait for a query response by default
+	DefaultQueryRequestTimeout time.Duration = 20 * time.Second
+	// DefaultQueryRetries is how many times to attempt the query by default
+	DefaultQueryRetries int = 3
+	// DefaultQueryRetryWaitTime is the amount of seconds between query attempts
+	DefaultQueryRetryWaitTime time.Duration = 5 * time.Second
+)
+
 // NewQueryClient makes a new client for the user to query with.
 func NewQueryClient(queryKey, accountID string) *QueryClient {
 	client := &QueryClient{}
@@ -47,9 +57,9 @@ func NewQueryClient(queryKey, accountID string) *QueryClient {
 	client.Logger = log.New()
 
 	// Defaults
-	client.RequestTimeout = 20 * time.Second
-	client.RetryCount = 3
-	client.RetryWait = 5 * time.Second
+	client.RequestTimeout = DefaultQueryRequestTimeout
+	client.RetryCount = DefaultQueryRetries
+	client.RetryWait = DefaultQueryRetryWaitTime
 
 	return client
 }
@@ -73,27 +83,38 @@ func (c *QueryClient) Validate() error {
 }
 
 // QueryEvents initiates an Insights query, returns a response for parsing
-func (c *QueryClient) QueryEvents(nrqlQuery string) (*QueryResponse, error) {
+func (c *QueryClient) QueryEvents(nrqlQuery string) (response *QueryResponse, err error) {
 	c.Logger.Debugf("Querying: %s", nrqlQuery)
-	c.generateQueryURL(nrqlQuery)
+	err = c.generateQueryURL(nrqlQuery)
+	if err != nil {
+		return nil, err
+	}
 
-	response, queryErr := c.queryRequest(nrqlQuery)
-	if queryErr != nil {
-		return nil, queryErr
+	response = &QueryResponse{}
+	err = c.queryRequest(response)
+	if err != nil {
+		return nil, err
 	}
 
 	return response, nil
 }
 
 // queryRequest makes a NRQL query
-func (c *QueryClient) queryRequest(nrqlQuery string) (queryResult *QueryResponse, err error) {
+func (c *QueryClient) queryRequest(queryResult interface{}) (err error) {
+	var request *http.Request
+	var response *http.Response
+
 	if len(c.URL.RawQuery) < 1 {
-		return nil, fmt.Errorf("Query string can not be empty")
+		return fmt.Errorf("Query string can not be empty")
 	}
 
-	request, reqErr := http.NewRequest("GET", c.URL.String(), nil)
-	if reqErr != nil {
-		return nil, fmt.Errorf("Failed to construct request for: %s", nrqlQuery)
+	if queryResult == nil {
+		return errors.New("Must have pointer for result")
+	}
+
+	request, err = http.NewRequest("GET", c.URL.String(), nil)
+	if err != nil {
+		return err
 	}
 
 	request.Header.Add("Accept", "application/json")
@@ -101,30 +122,44 @@ func (c *QueryClient) queryRequest(nrqlQuery string) (queryResult *QueryResponse
 
 	client := &http.Client{Timeout: c.RequestTimeout}
 
-	response, respErr := client.Do(request)
-
-	if respErr != nil {
-		return nil, fmt.Errorf("Failed query request for: %v", respErr)
+	response, err = client.Do(request)
+	if err != nil {
+		err = fmt.Errorf("Failed query request for: %v", err)
+		return
 	}
-
 	defer func() {
-		err = response.Body.Close()
+		respErr := response.Body.Close()
+		if respErr != nil && err == nil {
+			err = respErr // Don't mask previous errors
+		}
 	}()
+
+	if response.StatusCode != http.StatusOK {
+		err = fmt.Errorf("Bad response code: %d", response.StatusCode)
+		return
+	}
 
 	err = c.parseResponse(response, queryResult)
 	if err != nil {
-		return nil, fmt.Errorf("Failed query: %v", err)
+		err = fmt.Errorf("Failed query: %v", err)
 	}
 
-	return queryResult, err
+	return err
 }
 
 // generateQueryURL URL encodes the NRQL
-func (c *QueryClient) generateQueryURL(nrqlQuery string) {
+func (c *QueryClient) generateQueryURL(nrqlQuery string) error {
+	if len(nrqlQuery) < 10 {
+		return fmt.Errorf("Invalid query [%s]", nrqlQuery)
+	}
+
 	urlQuery := c.URL.Query()
 	urlQuery.Set("nrql", nrqlQuery)
 	c.URL.RawQuery = urlQuery.Encode()
+
 	log.Debugf("query url is: %s", c.URL)
+
+	return nil
 }
 
 // parseQueryResponse takes an HTTP response, make sure it is a valid response,

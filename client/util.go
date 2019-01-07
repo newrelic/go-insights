@@ -8,18 +8,20 @@ import (
 )
 
 func gZipBuffer(body []byte) (io.Reader, error) {
+	var err error
+
 	readBuffer := bufio.NewReader(bytes.NewReader(body))
 	buffer := bytes.NewBuffer([]byte{})
 	writer := gzip.NewWriter(buffer)
 
-	_, readErr := readBuffer.WriteTo(writer)
-	if readErr != nil {
-		return nil, readErr
+	_, err = readBuffer.WriteTo(writer)
+	if err != nil {
+		return nil, err
 	}
 
-	writeErr := writer.Close()
-	if writeErr != nil {
-		return nil, writeErr
+	err = writer.Close()
+	if err != nil {
+		return nil, err
 	}
 
 	return buffer, nil

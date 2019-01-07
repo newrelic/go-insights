@@ -13,6 +13,6 @@ func TestGZipBuffer_good(t *testing.T) {
 
 	res, err := gZipBuffer(data)
 
-	assert.Nil(t, err, "Error should be nil")
+	assert.NoError(t, err)
 	assert.NotNil(t, res, "Result should not be nil")
 }
