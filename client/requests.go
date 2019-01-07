@@ -128,7 +128,7 @@ func (c *QueryClient) queryRequest(nrqlQuery string) (queryResult *QueryResponse
 		err = response.Body.Close()
 	}()
 
-	queryResult, err = c.parseQueryResponse(response)
+	err = c.parseQueryResponse(response, queryResult)
 	if err != nil {
 		return nil, fmt.Errorf("Failed query: %v", err)
 	}
@@ -136,10 +136,10 @@ func (c *QueryClient) queryRequest(nrqlQuery string) (queryResult *QueryResponse
 	return queryResult, err
 }
 
+// parseResponse checks the Insert response for errors and reports the message
+// if an error happened
 func (c *InsertClient) parseResponse(response *http.Response) error {
-
 	body, readErr := ioutil.ReadAll(response.Body)
-
 	if readErr != nil {
 		return fmt.Errorf("Failed to read response body: %s", readErr.Error())
 	}
@@ -169,6 +169,7 @@ func (c *InsertClient) parseResponse(response *http.Response) error {
 	return fmt.Errorf("%d: %s", response.StatusCode, respJSON.Error)
 }
 
+// generateQueryURL URL encodes the NRQL
 func (c *QueryClient) generateQueryURL(nrqlQuery string) {
 	urlQuery := c.URL.Query()
 	urlQuery.Set("nrql", nrqlQuery)
@@ -176,21 +177,19 @@ func (c *QueryClient) generateQueryURL(nrqlQuery string) {
 	log.Debugf("query url is: %s", c.URL)
 }
 
-func (c *QueryClient) parseQueryResponse(response *http.Response) (*QueryResponse, error) {
-
+// parseQueryResponse takes an HTTP response, make sure it is a valid response,
+// then attempts to decode the JSON body into the `parsedResponse` interface
+func (c *QueryClient) parseQueryResponse(response *http.Response, parsedResponse interface{}) error {
 	body, readErr := ioutil.ReadAll(response.Body)
-
 	if readErr != nil {
-		return nil, fmt.Errorf("failed to read response body: %s", readErr.Error())
+		return fmt.Errorf("failed to read response body: %s", readErr.Error())
 	}
 
 	c.Logger.Debugf("Response %d body: %s", response.StatusCode, body)
 
-	parsedResponse := &QueryResponse{}
-
 	if jsonErr := json.Unmarshal(body, parsedResponse); jsonErr != nil {
-		return nil, fmt.Errorf("Unable to unmarshal query response: %v", jsonErr)
+		return fmt.Errorf("Unable to unmarshal query response: %v", jsonErr)
 	}
 
-	return parsedResponse, nil
+	return nil
 }
