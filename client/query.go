@@ -1,7 +1,10 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"net/url"
 	"regexp"
 	"time"
@@ -80,4 +83,63 @@ func (c *QueryClient) QueryEvents(nrqlQuery string) (*QueryResponse, error) {
 	}
 
 	return response, nil
+}
+
+// queryRequest makes a NRQL query
+func (c *QueryClient) queryRequest(nrqlQuery string) (queryResult *QueryResponse, err error) {
+	if len(c.URL.RawQuery) < 1 {
+		return nil, fmt.Errorf("Query string can not be empty")
+	}
+
+	request, reqErr := http.NewRequest("GET", c.URL.String(), nil)
+	if reqErr != nil {
+		return nil, fmt.Errorf("Failed to construct request for: %s", nrqlQuery)
+	}
+
+	request.Header.Add("Accept", "application/json")
+	request.Header.Add("X-Query-Key", c.QueryKey)
+
+	client := &http.Client{Timeout: c.RequestTimeout}
+
+	response, respErr := client.Do(request)
+
+	if respErr != nil {
+		return nil, fmt.Errorf("Failed query request for: %v", respErr)
+	}
+
+	defer func() {
+		err = response.Body.Close()
+	}()
+
+	err = c.parseResponse(response, queryResult)
+	if err != nil {
+		return nil, fmt.Errorf("Failed query: %v", err)
+	}
+
+	return queryResult, err
+}
+
+// generateQueryURL URL encodes the NRQL
+func (c *QueryClient) generateQueryURL(nrqlQuery string) {
+	urlQuery := c.URL.Query()
+	urlQuery.Set("nrql", nrqlQuery)
+	c.URL.RawQuery = urlQuery.Encode()
+	log.Debugf("query url is: %s", c.URL)
+}
+
+// parseQueryResponse takes an HTTP response, make sure it is a valid response,
+// then attempts to decode the JSON body into the `parsedResponse` interface
+func (c *QueryClient) parseResponse(response *http.Response, parsedResponse interface{}) error {
+	body, readErr := ioutil.ReadAll(response.Body)
+	if readErr != nil {
+		return fmt.Errorf("failed to read response body: %s", readErr.Error())
+	}
+
+	c.Logger.Debugf("Response %d body: %s", response.StatusCode, body)
+
+	if jsonErr := json.Unmarshal(body, parsedResponse); jsonErr != nil {
+		return fmt.Errorf("Unable to unmarshal query response: %v", jsonErr)
+	}
+
+	return nil
 }

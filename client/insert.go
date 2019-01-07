@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
@@ -38,6 +41,12 @@ type Statistics struct {
 	TimerExpiredCount  int64
 	InsightsRetryCount int64
 	HTTPErrorCount     int64
+}
+
+// Assumption here that responses from insights are either success or error.
+type insertResponse struct {
+	Error   string `json:"error,omitempty"`
+	Success bool   `json:"success,omitempty"`
 }
 
 // NewInsertClient makes a new client for the user to send data with
@@ -335,4 +344,102 @@ func (c *InsertClient) SetCompression(compression Compression) {
 	// use gzip only for now
 	// c.Compression = compression
 	log.Debugf("Compression set: %d", c.Compression)
+}
+
+func (c *InsertClient) jsonPostRequest(body []byte) (err error) {
+	const prependText = "Inisghts Post: "
+
+	req, reqErr := c.generateJSONPostRequest(body)
+	if reqErr != nil {
+		return fmt.Errorf("%s: %v", prependText, reqErr)
+	}
+
+	client := &http.Client{Timeout: c.RequestTimeout}
+	resp, respErr := client.Do(req)
+	if respErr != nil {
+		return fmt.Errorf("%s: %v", prependText, respErr)
+	}
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			return
+		}
+	}()
+
+	if parseErr := c.parseResponse(resp); parseErr != nil {
+		return fmt.Errorf("%s: %v", prependText, parseErr)
+	}
+
+	return nil
+}
+
+func (c *InsertClient) generateJSONPostRequest(body []byte) (*http.Request, error) {
+	var readBuffer io.Reader
+	var buffErr error
+	var encoding string
+
+	switch c.Compression {
+	case None:
+		c.Logger.Debug("Compression: None")
+		readBuffer = bytes.NewBuffer(body)
+	case Deflate:
+		c.Logger.Debug("Compression: Deflate")
+		readBuffer = nil
+	case Gzip:
+		c.Logger.Debug("Compression: Gzip")
+		readBuffer, buffErr = gZipBuffer(body)
+		encoding = "gzip"
+	case Zlib:
+		c.Logger.Debug("Compression: Zlib")
+		readBuffer = nil
+	}
+
+	if buffErr != nil {
+		return nil, fmt.Errorf("failed to read body: %v", buffErr)
+	}
+
+	request, reqErr := http.NewRequest("POST", c.URL.String(), readBuffer)
+	if reqErr != nil {
+		return nil, fmt.Errorf("failed to construct request for: %s", body)
+	}
+
+	request.Header.Add("Content-Type", "application/json")
+	request.Header.Add("X-Insert-Key", c.InsertKey)
+	if encoding != "" {
+		request.Header.Add("Content-Encoding", encoding)
+	}
+
+	return request, nil
+}
+
+// parseResponse checks the Insert response for errors and reports the message
+// if an error happened
+func (c *InsertClient) parseResponse(response *http.Response) error {
+	body, readErr := ioutil.ReadAll(response.Body)
+	if readErr != nil {
+		return fmt.Errorf("Failed to read response body: %s", readErr.Error())
+	}
+
+	if response.StatusCode != 200 {
+		return fmt.Errorf("Bad response from Insights: %d \n\t%s", response.StatusCode, string(body))
+	}
+
+	c.Logger.Debugf("Response %d body: %s", response.StatusCode, body)
+
+	respJSON := insertResponse{}
+	if err := json.Unmarshal(body, &respJSON); err != nil {
+		return fmt.Errorf("Failed to unmarshal insights response: %v", err)
+	}
+
+	// Success
+	if response.StatusCode == 200 && respJSON.Success {
+		return nil
+	}
+
+	// Non 200 response (or 200 not success, if such a thing)
+	if respJSON.Error == "" {
+		respJSON.Error = "Error unknown"
+	}
+
+	return fmt.Errorf("%d: %s", response.StatusCode, respJSON.Error)
 }
