@@ -79,7 +79,7 @@ coverage:
 	@rm -rf $(COVERAGE_DIR)/*
 	@for d in $(GO_PKGS); do \
 		pkg=`basename $$d` ;\
-		$(GO) test -coverprofile $(COVERAGE_DIR)/$$pkg.tmp $$d ;\
+		$(GO) test -tags 'unit integration' -coverprofile $(COVERAGE_DIR)/$$pkg.tmp $$d ;\
 	done
 	@echo 'mode: set' > $(COVERAGE_DIR)/coverage.out
 # || true to ignore grep return code if no matches (i.e. no tests written...)
