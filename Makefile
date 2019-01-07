@@ -20,7 +20,7 @@ GOMETALINTER = gometalinter.v2
 GOVENDOR     = govendor
 
 # Determine packages by looking into pkg/*
-PACKAGES=$(wildcard ${SRCDIR}/pkg/*)
+PACKAGES=client
 
 # Determine commands by looking into cmd/*
 COMMANDS=$(wildcard ${SRCDIR}/cmd/*)

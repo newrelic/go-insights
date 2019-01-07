@@ -11,7 +11,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-const version = "0.0.0"
+const version = "1.0.0"
 
 var (
 	insightsKey = kingpin.Flag("key", "Your insights key.").Short('k').Required().String()
@@ -24,11 +24,11 @@ var (
 	queryCmd    = kingpin.Command("query", "Query data in insights.")
 	queryString = queryCmd.Arg("query string", "Insights Query").Required().String()
 
-	versionFlag = kingpin.Version("Insights client version: " + version)
-	logDebug    = kingpin.Flag("debug", "Enable debug level logging.").Short('d').Bool()
+	logDebug = kingpin.Flag("debug", "Enable debug level logging.").Short('d').Bool()
 )
 
 func main() {
+	kingpin.Version("Insights client version: " + version)
 	cmd := kingpin.Parse()
 
 	if *logDebug {
@@ -44,7 +44,7 @@ func main() {
 	case "insert":
 		cli := client.NewInsertClient(*insightsKey, *accountID)
 		if cli == nil {
-			log.Fatal("Failed to create a %s client", cmd)
+			log.Fatalf("Failed to create a %s client", cmd)
 		}
 		if len(*insightsURL) > 0 {
 			cli.UseCustomURL(*insightsURL)

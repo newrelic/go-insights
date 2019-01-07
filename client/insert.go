@@ -80,8 +80,20 @@ func (c *InsertClient) Start() error {
 
 	// TODO: errors returned from the call to watchdog()
 	// and batchWorker() are simply dropped on the floor.
-	go c.watchdog()
-	go c.batchWorker()
+	go func() {
+		err := c.watchdog()
+		if err != nil {
+			log.Errorf("Watchdog returned error: %v", err)
+		}
+	}()
+
+	go func() {
+		err := c.batchWorker()
+		if err != nil {
+			log.Errorf("Batch Worker returned error: %v", err)
+		}
+	}()
+
 	c.Logger.Infof("Insights client launched in daemon mode with endpoint %s", c.URL)
 
 	return nil
@@ -101,7 +113,12 @@ func (c *InsertClient) StartListener(inputChannel chan interface{}) (err error) 
 		return errors.New("Channel to listen is nil")
 	}
 
-	go c.queueWorker(inputChannel)
+	go func() {
+		err := c.queueWorker(inputChannel)
+		if err != nil {
+			log.Errorf("Queue Worker returned error: %v", err)
+		}
+	}()
 
 	c.Logger.Info("Insights client started channel listener")
 
@@ -191,7 +208,10 @@ func (c *InsertClient) queueWorker(inputChannel chan interface{}) (err error) {
 	for {
 		select {
 		case msg := <-inputChannel:
-			c.EnqueueEvent(msg)
+			err = c.EnqueueEvent(msg)
+			if err != nil {
+				return err
+			}
 		}
 	}
 }

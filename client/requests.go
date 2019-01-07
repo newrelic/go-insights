@@ -19,7 +19,7 @@ type insightsResponse struct {
 	Success bool   `json:"success,omitempty"`
 }
 
-func (c *InsertClient) jsonPostRequest(body []byte) error {
+func (c *InsertClient) jsonPostRequest(body []byte) (err error) {
 	const prependText = "Inisghts Post: "
 
 	req, reqErr := c.generateJSONPostRequest(body)
@@ -32,7 +32,12 @@ func (c *InsertClient) jsonPostRequest(body []byte) error {
 	if respErr != nil {
 		return fmt.Errorf("%s: %v", prependText, respErr)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			return
+		}
+	}()
 
 	if parseErr := c.parseResponse(resp); parseErr != nil {
 		return fmt.Errorf("%s: %v", prependText, parseErr)
@@ -84,16 +89,21 @@ func gZipBuffer(body []byte) (io.Reader, error) {
 	readBuffer := bufio.NewReader(bytes.NewReader(body))
 	buffer := bytes.NewBuffer([]byte{})
 	writer := gzip.NewWriter(buffer)
+
 	_, readErr := readBuffer.WriteTo(writer)
-	writer.Close()
 	if readErr != nil {
 		return nil, readErr
 	}
+
+	writeErr := writer.Close()
+	if writeErr != nil {
+		return nil, writeErr
+	}
+
 	return buffer, nil
 }
 
-func (c *QueryClient) queryRequest(nrqlQuery string) (*QueryResponse, error) {
-
+func (c *QueryClient) queryRequest(nrqlQuery string) (queryResult *QueryResponse, err error) {
 	if len(c.URL.RawQuery) < 1 {
 		return nil, fmt.Errorf("Query string can not be empty")
 	}
@@ -114,15 +124,16 @@ func (c *QueryClient) queryRequest(nrqlQuery string) (*QueryResponse, error) {
 		return nil, fmt.Errorf("Failed query request for: %v", respErr)
 	}
 
-	defer response.Body.Close()
+	defer func() {
+		err = response.Body.Close()
+	}()
 
-	queryResult, parseErr := c.parseQueryResponse(response)
-
-	if parseErr != nil {
-		return nil, fmt.Errorf("Failed query: %v", parseErr)
+	queryResult, err = c.parseQueryResponse(response)
+	if err != nil {
+		return nil, fmt.Errorf("Failed query: %v", err)
 	}
 
-	return queryResult, nil
+	return queryResult, err
 }
 
 func (c *InsertClient) parseResponse(response *http.Response) error {
