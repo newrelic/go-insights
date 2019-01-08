@@ -20,8 +20,8 @@ func TestNewQueryClient(t *testing.T) {
 	assert.Equal(t, testKey, client.QueryKey, "NewQueryClient should of set QueryKey")
 	assert.NotNil(t, client.Logger, "NewQueryClient should of set Logger")
 	assert.Equal(t, DefaultQueryRequestTimeout, client.RequestTimeout, "NewQueryClient should of set a default request timeout")
-	assert.Equal(t, DefaultQueryRetries, client.RetryCount, "NewQueryClient should of set a default number of request retries")
-	assert.Equal(t, DefaultQueryRetryWaitTime, client.RetryWait, "NewQueryClient should of set a default retry wait time")
+	assert.Equal(t, DefaultRetries, client.RetryCount, "NewQueryClient should of set a default number of request retries")
+	assert.Equal(t, DefaultRetryWaitTime, client.RetryWait, "NewQueryClient should of set a default retry wait time")
 }
 
 func TestQueryClientValidate(t *testing.T) {

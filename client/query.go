@@ -8,45 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
-	"time"
 
 	log "github.com/sirupsen/logrus"
-)
-
-// QueryClient contains all of the configuration required for queries
-type QueryClient struct {
-	QueryKey string
-	Client
-}
-
-// QueryResponse used to decode the JSON response from Insights
-type QueryResponse struct {
-	Results  []map[string]interface{} `json:"results"`
-	Facets   []map[string]interface{} `json:"facets"`
-	Metadata QueryMetadata            `json:"metadata"`
-}
-
-// QueryMetadata used to decode the JSON response metadata from Insights
-type QueryMetadata struct {
-	Contents        interface{} `json:"contents"`
-	EventType       string      `json:"eventType"`
-	OpenEnded       bool        `json:"openEnded"`
-	BeginTime       time.Time   `json:"beginTime"`
-	EndTime         time.Time   `json:"endTime"`
-	BeginTimeMillis int64       `json:"beginTimeMillis"`
-	EndTimeMillis   int64       `json:"endTimeMillis"`
-	RawSince        string      `json:"rawSince"`
-	RawUntil        string      `json:"rawUntil"`
-	RawCompareWith  string      `json:"rawCompareWith"`
-}
-
-const (
-	// DefaultQueryRequestTimeout is the amount of seconds to wait for a query response by default
-	DefaultQueryRequestTimeout time.Duration = 20 * time.Second
-	// DefaultQueryRetries is how many times to attempt the query by default
-	DefaultQueryRetries int = 3
-	// DefaultQueryRetryWaitTime is the amount of seconds between query attempts
-	DefaultQueryRetryWaitTime time.Duration = 5 * time.Second
 )
 
 // NewQueryClient makes a new client for the user to query with.
@@ -58,8 +21,8 @@ func NewQueryClient(queryKey, accountID string) *QueryClient {
 
 	// Defaults
 	client.RequestTimeout = DefaultQueryRequestTimeout
-	client.RetryCount = DefaultQueryRetries
-	client.RetryWait = DefaultQueryRetryWaitTime
+	client.RetryCount = DefaultRetries
+	client.RetryWait = DefaultRetryWaitTime
 
 	return client
 }

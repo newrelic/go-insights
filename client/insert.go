@@ -17,53 +17,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// InsertClient contains all of the configuration required for inserts
-type InsertClient struct {
-	InsertKey   string
-	eventQueue  chan []byte
-	eventTimer  *time.Timer
-	flushQueue  chan bool
-	WorkerCount int
-	BatchSize   int
-	BatchTime   time.Duration
-	Compression Compression
-	Client
-	Statistics
-}
-
-// Statistics about the inserted data
-type Statistics struct {
-	EventCount         int64
-	FlushCount         int64
-	ByteCount          int64
-	FullFlushCount     int64
-	PartialFlushCount  int64
-	TimerExpiredCount  int64
-	InsightsRetryCount int64
-	HTTPErrorCount     int64
-}
-
-// Assumption here that responses from insights are either success or error.
-type insertResponse struct {
-	Error   string `json:"error,omitempty"`
-	Success bool   `json:"success,omitempty"`
-}
-
-const (
-	// DefaultBatchTimeout ...
-	DefaultBatchTimeout = 1 * time.Minute
-	// DefaultBatchEventCount ...
-	DefaultBatchEventCount = 950
-	// DefaultWorkerCount ...
-	DefaultWorkerCount = 1
-	// DefaultInsertRequestTimeout ...
-	DefaultInsertRequestTimeout = 10 * time.Second
-	// DefaultInsertRetries ...
-	DefaultInsertRetries = 3
-	// DefaultInsertRetryTime ...
-	DefaultInsertRetryTime = 5 * time.Second
-)
-
 // NewInsertClient makes a new client for the user to send data with
 func NewInsertClient(insertKey string, accountID string) *InsertClient {
 	client := &InsertClient{}
@@ -74,8 +27,8 @@ func NewInsertClient(insertKey string, accountID string) *InsertClient {
 
 	// Defaults
 	client.RequestTimeout = DefaultInsertRequestTimeout
-	client.RetryCount = DefaultInsertRetries
-	client.RetryWait = DefaultInsertRetryTime
+	client.RetryCount = DefaultRetries
+	client.RetryWait = DefaultRetryWaitTime
 
 	// Defaults for buffered client.
 	// These are here so they can be overwritten before calling start().

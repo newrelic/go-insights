@@ -7,29 +7,23 @@
 
 ```go
 const (
-	// DefaultBatchTimeout ...
-	DefaultBatchTimeout = 1 * time.Minute
-	// DefaultBatchEventCount ...
-	DefaultBatchEventCount = 950
-	// DefaultWorkerCount ...
-	DefaultWorkerCount = 1
-	// DefaultInsertRequestTimeout ...
-	DefaultInsertRequestTimeout = 10 * time.Second
-	// DefaultInsertRetries ...
-	DefaultInsertRetries = 3
-	// DefaultInsertRetryTime ...
-	DefaultInsertRetryTime = 5 * time.Second
-)
-```
 
-```go
-const (
-	// DefaultQueryRequestTimeout is the amount of seconds to wait for a query response by default
-	DefaultQueryRequestTimeout time.Duration = 20 * time.Second
-	// DefaultQueryRetries is how many times to attempt the query by default
-	DefaultQueryRetries int = 3
-	// DefaultQueryRetryWaitTime is the amount of seconds between query attempts
-	DefaultQueryRetryWaitTime time.Duration = 5 * time.Second
+	// DefaultBatchTimeout is the amount of time to submit batches even if the event count hasn't been hit
+	DefaultBatchTimeout = 1 * time.Minute
+	// DefaultBatchEventCount is the maximum number of events before sending a batch (fuzzy)
+	DefaultBatchEventCount = 950
+	// DefaultWorkerCount is the number of background workers consuming and sending events
+	DefaultWorkerCount = 1
+
+	// DefaultInsertRequestTimeout is the amount of seconds to wait for a insert response
+	DefaultInsertRequestTimeout = 10 * time.Second
+	// DefaultQueryRequestTimeout is the amount of seconds to wait for a query response
+	DefaultQueryRequestTimeout = 20 * time.Second
+
+	// DefaultRetries is how many times to attempt the query
+	DefaultRetries = 3
+	// DefaultRetryWaitTime is the amount of seconds between query attempts
+	DefaultRetryWaitTime = 5 * time.Second
 )
 ```
 
