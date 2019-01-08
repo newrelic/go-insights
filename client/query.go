@@ -47,19 +47,33 @@ func (c *QueryClient) Validate() error {
 
 // QueryEvents initiates an Insights query, returns a response for parsing
 func (c *QueryClient) QueryEvents(nrqlQuery string) (response *QueryResponse, err error) {
-	c.Logger.Debugf("Querying: %s", nrqlQuery)
-	err = c.generateQueryURL(nrqlQuery)
-	if err != nil {
-		return nil, err
-	}
-
 	response = &QueryResponse{}
-	err = c.queryRequest(response)
+	err = c.Query(nrqlQuery, response)
 	if err != nil {
 		return nil, err
 	}
 
 	return response, nil
+}
+
+// Query initiates an Insights query, with the JSON parsed into 'response'
+func (c *QueryClient) Query(nrqlQuery string, response interface{}) (err error) {
+	if response == nil {
+		return errors.New("go-insights: Invalid query response can not be nil")
+	}
+
+	err = c.generateQueryURL(nrqlQuery)
+	if err != nil {
+		return err
+	}
+
+	c.Logger.Debugf("Querying: %s", nrqlQuery)
+	err = c.queryRequest(response)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // queryRequest makes a NRQL query

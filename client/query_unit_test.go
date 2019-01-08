@@ -52,6 +52,40 @@ func TestGenerateQueryURL(t *testing.T) {
 	assert.Equal(t, testNRQLQueryEncoded, client.URL.RawQuery, "generateQueryURL should of set client.URL.RawQuery")
 }
 
+func TestQueryClientQuery(t *testing.T) {
+	var err error
+	res := &QueryResponse{}
+
+	// Create a test server to query againt
+	ts := httptest.NewServer(testQueryHandlerEmpty)
+	defer ts.Close()
+
+	client := NewQueryClient(testKey, testID)  // Create test client
+	client.URL, err = client.URL.Parse(ts.URL) // Override the URL
+	assert.NoError(t, err)
+	assert.Equal(t, ts.URL, client.URL.String())
+
+	// Empty NRQL
+	err = client.Query("", res)
+	assert.Error(t, err, "Empty NRQL query should fail")
+
+	// Nil interface{}
+	err = client.Query(testNRQLQuery, nil)
+	assert.Error(t, err, "Empty NRQL query should fail")
+
+	// valid case
+	err = client.Query(testNRQLQuery, res)
+	assert.NoError(t, err)
+
+	// Custom struct
+	cust := struct {
+		Results  []map[string][]string `json:"results"`
+		Metadata QueryMetadata         `json:"metadata"`
+	}{}
+	err = client.Query(testNRQLQuery, &cust)
+	assert.NoError(t, err)
+}
+
 func TestQueryClientQueryRequest(t *testing.T) {
 	var err error
 	var res *QueryResponse

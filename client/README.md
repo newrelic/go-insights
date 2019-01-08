@@ -159,6 +159,13 @@ func NewQueryClient(queryKey, accountID string) *QueryClient
 ```
 NewQueryClient makes a new client for the user to query with.
 
+#### func (*QueryClient) Query
+
+```go
+func (c *QueryClient) Query(nrqlQuery string, response interface{}) (err error)
+```
+Query initiates an Insights query, with the JSON parsed into 'response'
+
 #### func (*QueryClient) QueryEvents
 
 ```go
