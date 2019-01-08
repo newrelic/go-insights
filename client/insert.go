@@ -172,7 +172,7 @@ func (c *InsertClient) PostEvent(data interface{}) error {
 	case []byte:
 		jsonData = data.([]byte)
 	case string:
-		jsonData = []byte(data.([]byte))
+		jsonData = []byte(data.(string))
 	default:
 		var jsonErr error
 		jsonData, jsonErr = json.Marshal(data)
@@ -325,16 +325,7 @@ func (c *InsertClient) sendEvents(events [][]byte) error {
 	buf.WriteString("]")
 	atomic.AddInt64(&c.Statistics.ByteCount, int64(buf.Len()))
 
-	if c.URL == nil {
-		// TODO: Somewhat of a hack for the test suite, should mock this
-		return nil
-	}
-
-	if postErr := c.jsonPostRequest(buf.Bytes()); postErr != nil {
-		return postErr
-	}
-
-	return nil
+	return c.jsonPostRequest(buf.Bytes())
 }
 
 // SetCompression allows modification of the compression type used in communication
@@ -373,9 +364,8 @@ func (c *InsertClient) jsonPostRequest(body []byte) (err error) {
 	return nil
 }
 
-func (c *InsertClient) generateJSONPostRequest(body []byte) (*http.Request, error) {
+func (c *InsertClient) generateJSONPostRequest(body []byte) (request *http.Request, err error) {
 	var readBuffer io.Reader
-	var buffErr error
 	var encoding string
 
 	switch c.Compression {
@@ -387,19 +377,19 @@ func (c *InsertClient) generateJSONPostRequest(body []byte) (*http.Request, erro
 		readBuffer = nil
 	case Gzip:
 		c.Logger.Debug("Compression: Gzip")
-		readBuffer, buffErr = gZipBuffer(body)
+		readBuffer, err = gZipBuffer(body)
 		encoding = "gzip"
 	case Zlib:
 		c.Logger.Debug("Compression: Zlib")
 		readBuffer = nil
 	}
 
-	if buffErr != nil {
-		return nil, fmt.Errorf("failed to read body: %v", buffErr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read body: %v", err)
 	}
 
-	request, reqErr := http.NewRequest("POST", c.URL.String(), readBuffer)
-	if reqErr != nil {
+	request, err = http.NewRequest("POST", c.URL.String(), readBuffer)
+	if err != nil {
 		return nil, fmt.Errorf("failed to construct request for: %s", body)
 	}
 

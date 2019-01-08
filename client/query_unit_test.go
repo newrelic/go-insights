@@ -3,22 +3,11 @@
 package client
 
 import (
-	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
-
-// Fixture stuff
-var testNRQLQuery string = "SHOW eventtypes"
-var testNRQLQueryEncoded string = "nrql=SHOW+eventtypes"
-var testNRQLResponseJSON []byte = []byte(`{"results": [{"eventTypes": [] }], "metadata": {"guid": "d87afea4-083f-29c9-3390-8ab07e271455", "routerGuid": "", "messages": [], "contents": [{"function": "eventTypes"}]}}`)
-var httpHandlerBad http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusServiceUnavailable) })
-var httpHandlerEmpty http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	w.Write(testNRQLResponseJSON)
-})
 
 func TestNewQueryClient(t *testing.T) {
 	client := NewQueryClient(testKey, testID)
@@ -68,7 +57,7 @@ func TestQueryClientQueryRequest(t *testing.T) {
 	var res *QueryResponse
 
 	// Create a test server to query againt
-	ts := httptest.NewServer(httpHandlerBad)
+	ts := httptest.NewServer(testHandlerBad)
 	defer ts.Close()
 
 	client := NewQueryClient(testKey, testID)  // Create test client
@@ -86,7 +75,7 @@ func TestQueryClientQueryRequest_decodeFailure(t *testing.T) {
 	var err error
 
 	// Create a test server to query againt
-	ts := httptest.NewServer(httpHandlerEmpty)
+	ts := httptest.NewServer(testQueryHandlerEmpty)
 	defer ts.Close()
 
 	client := NewQueryClient(testKey, testID)  // Create test client
@@ -106,7 +95,7 @@ func TestQueryClientQueryEvents_bad(t *testing.T) {
 	var resp *QueryResponse
 
 	// Create a test server to query againt
-	ts := httptest.NewServer(httpHandlerBad)
+	ts := httptest.NewServer(testHandlerBad)
 	defer ts.Close()
 
 	client := NewQueryClient(testKey, testID)  // Create test client
@@ -137,7 +126,7 @@ func TestQueryClientQueryEvents_good(t *testing.T) {
 	var resp *QueryResponse
 
 	// Create a test server to query againt
-	ts := httptest.NewServer(httpHandlerEmpty)
+	ts := httptest.NewServer(testQueryHandlerEmpty)
 	defer ts.Close()
 
 	client := NewQueryClient(testKey, testID)  // Create test client
