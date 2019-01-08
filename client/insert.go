@@ -49,6 +49,21 @@ type insertResponse struct {
 	Success bool   `json:"success,omitempty"`
 }
 
+const (
+	// DefaultBatchTimeout ...
+	DefaultBatchTimeout = 1 * time.Minute
+	// DefaultBatchEventCount ...
+	DefaultBatchEventCount = 950
+	// DefaultWorkerCount ...
+	DefaultWorkerCount = 1
+	// DefaultInsertRequestTimeout ...
+	DefaultInsertRequestTimeout = 10 * time.Second
+	// DefaultInsertRetries ...
+	DefaultInsertRetries = 3
+	// DefaultInsertRetryTime ...
+	DefaultInsertRetryTime = 5 * time.Second
+)
+
 // NewInsertClient makes a new client for the user to send data with
 func NewInsertClient(insertKey string, accountID string) *InsertClient {
 	client := &InsertClient{}
@@ -58,15 +73,15 @@ func NewInsertClient(insertKey string, accountID string) *InsertClient {
 	client.Compression = None
 
 	// Defaults
-	client.RequestTimeout = 10 * time.Second
-	client.RetryCount = 3
-	client.RetryWait = 5 * time.Second
+	client.RequestTimeout = DefaultInsertRequestTimeout
+	client.RetryCount = DefaultInsertRetries
+	client.RetryWait = DefaultInsertRetryTime
 
 	// Defaults for buffered client.
 	// These are here so they can be overwritten before calling start().
-	client.WorkerCount = 1
-	client.BatchTime = 1 * time.Minute
-	client.BatchSize = 950
+	client.WorkerCount = DefaultWorkerCount
+	client.BatchTime = DefaultBatchTimeout
+	client.BatchSize = DefaultBatchEventCount
 
 	return client
 }
@@ -198,10 +213,10 @@ func (c *InsertClient) PostEvent(data interface{}) error {
 // Flush gives the user a way to manually flush the queue in the foreground.
 // This is also used by watchdog when the timer expires.
 func (c *InsertClient) Flush() error {
-	c.Logger.Debug("Flushing insights client")
 	if c.flushQueue == nil {
 		return errors.New("Queueing not enabled for this client")
 	}
+	c.Logger.Debug("Flushing insights client")
 	atomic.AddInt64(&c.Statistics.FlushCount, 1)
 
 	c.flushQueue <- true
@@ -230,14 +245,18 @@ func (c *InsertClient) queueWorker(inputChannel chan interface{}) (err error) {
 // it has expired.
 //
 func (c *InsertClient) watchdog() (err error) {
+	if c.eventTimer == nil {
+		return errors.New("Invalid timer for watchdog()")
+	}
+
 	for {
 		select {
 		case <-c.eventTimer.C:
 			// Timer expired, and we have data, send it
 			atomic.AddInt64(&c.Statistics.TimerExpiredCount, 1)
 			c.Logger.Debug("Timeout expired, flushing queued events")
-			if flushErr := c.Flush(); flushErr != nil {
-				c.Logger.Errorf("Flush error: %s", flushErr.Error())
+			if err = c.Flush(); err != nil {
+				return
 			}
 			c.eventTimer.Reset(c.BatchTime)
 		}

@@ -7,6 +7,23 @@
 
 ```go
 const (
+	// DefaultBatchTimeout ...
+	DefaultBatchTimeout = 1 * time.Minute
+	// DefaultBatchEventCount ...
+	DefaultBatchEventCount = 950
+	// DefaultWorkerCount ...
+	DefaultWorkerCount = 1
+	// DefaultInsertRequestTimeout ...
+	DefaultInsertRequestTimeout = 10 * time.Second
+	// DefaultInsertRetries ...
+	DefaultInsertRetries = 3
+	// DefaultInsertRetryTime ...
+	DefaultInsertRetryTime = 5 * time.Second
+)
+```
+
+```go
+const (
 	// DefaultQueryRequestTimeout is the amount of seconds to wait for a query response by default
 	DefaultQueryRequestTimeout time.Duration = 20 * time.Second
 	// DefaultQueryRetries is how many times to attempt the query by default
