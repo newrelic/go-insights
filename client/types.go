@@ -11,6 +11,9 @@ const (
 	insightsInsertURL = "https://insights-collector.newrelic.com/v1/accounts"
 	insightsQueryURL  = "https://insights-api.newrelic.com/v1/accounts"
 
+	// Minimum length check for a valid NRQL statement
+	minValidNRQLLength = 8 // "SELECT 1"
+
 	// DefaultBatchTimeout is the amount of time to submit batches even if the event count hasn't been hit
 	DefaultBatchTimeout = 1 * time.Minute
 	// DefaultBatchEventCount is the maximum number of events before sending a batch (fuzzy)

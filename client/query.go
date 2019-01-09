@@ -56,7 +56,7 @@ func (c *QueryClient) QueryEvents(nrqlQuery string) (response *QueryResponse, er
 	return response, nil
 }
 
-// Query initiates an Insights query, with the JSON parsed into 'response'
+// Query initiates an Insights query, with the JSON parsed into 'response' struct
 func (c *QueryClient) Query(nrqlQuery string, response interface{}) (err error) {
 	if response == nil {
 		return errors.New("go-insights: Invalid query response can not be nil")
@@ -76,7 +76,8 @@ func (c *QueryClient) Query(nrqlQuery string, response interface{}) (err error) 
 	return nil
 }
 
-// queryRequest makes a NRQL query
+// queryRequest makes a NRQL query and returns the result in `queryResult`
+// which must be a pointer to a struct that the JSON package can unmarshall
 func (c *QueryClient) queryRequest(queryResult interface{}) (err error) {
 	var request *http.Request
 	var response *http.Response
@@ -126,13 +127,14 @@ func (c *QueryClient) queryRequest(queryResult interface{}) (err error) {
 
 // generateQueryURL URL encodes the NRQL
 func (c *QueryClient) generateQueryURL(nrqlQuery string) error {
-	if len(nrqlQuery) < 10 {
-		return fmt.Errorf("Invalid query [%s]", nrqlQuery)
+	if len(nrqlQuery) < minValidNRQLLength {
+		return fmt.Errorf("NRQL query is too short [%s]", nrqlQuery)
 	}
 
-	urlQuery := c.URL.Query()
+	// Use a new set of Values to sanitize the query string
+	urlQuery := url.Values{}
 	urlQuery.Set("nrql", nrqlQuery)
-	c.URL.RawQuery = urlQuery.Encode()
+	c.URL.RawQuery = urlQuery.Encode() // Seems odd, but directly out of the docs for net/url
 
 	log.Debugf("query url is: %s", c.URL)
 
