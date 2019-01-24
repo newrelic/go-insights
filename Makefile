@@ -1,93 +1,90 @@
 PROJECT_NAME := $(shell basename $(shell pwd))
-BINARY_NAME  := $(PROJECT_NAME)
-GO_PKGS      := $(shell go list ./... | grep -v "/vendor/")
-GO_FILES     := $(shell ls ./*.go)
+GO_PKGS      := $(shell go list ./... | grep -v -e "/vendor/" -e "/example")
+GO_FILES     := $(shell find ./ -type f -name "*.go")
+NATIVEOS     := $(shell go version | awk -F '[ /]' '{print $$4}')
+NATIVEARCH   := $(shell go version | awk -F '[ /]' '{print $$5}')
+SRCDIR       ?= .
 BUILD_DIR    := ./bin/
 COVERAGE_DIR := ./coverage/
-VALIDATE_DEPS = github.com/golang/lint/golint
-DEPS          = github.com/kardianos/govendor
-TEST_DEPS     = github.com/axw/gocov/gocov github.com/AlekSi/gocov-xml
+GOTOOLS       = github.com/kardianos/govendor \
+                gopkg.in/alecthomas/gometalinter.v2 \
+                github.com/axw/gocov/gocov \
+                github.com/AlekSi/gocov-xml \
+                github.com/stretchr/testify/assert \
+                github.com/robertkrimen/godocdown/godocdown \
 
-GO       = govendor
-GOLINT   = golint
-GOFMT    = gofmt
-GOVENDOR = govendor
+
+GO           = govendor
+GODOC        = godocdown
+GOMETALINTER = gometalinter.v2
+GOVENDOR     = govendor
+
+# Determine packages by looking into pkg/*
+PACKAGES=client
+
+# Determine commands by looking into cmd/*
+COMMANDS=$(wildcard ${SRCDIR}/cmd/*)
+
+# Determine binary names by stripping out the dir names
+BINS=$(foreach cmd,${COMMANDS},$(notdir ${cmd}))
+
+#ifeq (${COMMANDS},)
+#  $(error Could not determine COMMANDS, set SRCDIR or run in source dir)
+#endif
+#ifeq (${BINS},)
+#  $(error Could not determine BINS, set SRCDIR or run in source dir)
+#endif
+
 
 all: build
 
-build: clean validate test coverage compile
+build: check-version clean validate test coverage compile document
 
 clean:
 	@echo "=== $(PROJECT_NAME) === [ clean            ]: removing binaries and coverage file..."
 	@rm -rfv $(BUILD_DIR)/* $(COVERAGE_DIR)/*
 
-validate-deps:
-	@echo "=== $(PROJECT_NAME) === [ validate-deps    ]: installing validation dependencies..."
-	@$(GO) get -v $(VALIDATE_DEPS)
+tools: check-version
+	@echo "=== $(PROJECT_NAME) === [ tools            ]: Installing tools required by the project..."
+	@$(GO) get $(GOTOOLS)
+	@$(GOMETALINTER) --install
 
-fmt:
-	@printf "=== $(PROJECT_NAME) === [ validate         ]: running gofmt...  "
-# `gofmt` expects files instead of packages. `go fmt` works with
-# packages, but forces -l -w flags.
-	@OUTPUT="$(shell $(GOFMT) -l $(GO_FILES))" ;\
-	if [ -z "$$OUTPUT" ]; then \
-		echo "passed." ;\
-	else \
-		echo "failed. Incorrect syntax in the following files:" ;\
-		echo "$$OUTPUT" ;\
-		exit 1 ;\
-	fi
+tools-update: check-version
+	@echo "=== $(PROJECT_NAME) === [ tools-update     ]: Updating tools required by the project..."
+	@$(GO) get -u $(GOTOOLS)
+	@$(GOMETALINTER) --install
 
-lint:
-	@printf "=== $(PROJECT_NAME) === [ validate         ]: running golint... "
-	@OUTPUT="$(shell $(GOLINT) $(GO_PKGS))" ;\
-	if [ -z "$$OUTPUT" ]; then \
-		echo "passed." ;\
-	else \
-		echo "failed. Issues found:" ;\
-		echo "$$OUTPUT" ;\
-		exit 1 ;\
-	fi
+deps: tools deps-only
 
-vet:
-	@printf "=== $(PROJECT_NAME) === [ validate         ]: running go vet... "
-	@OUTPUT="$(shell $(GO) vet $(GO_PKGS))" ;\
-	if [ -z "$$OUTPUT" ]; then \
-		echo "passed." ;\
-	else \
-		echo "failed. Issues found:" ;\
-		echo "$$OUTPUT" ;\
-		exit 1;\
-	fi
-
-validate-only: fmt lint vet
-validate: validate-deps validate-only
-
-compile-deps:
-	@echo "=== $(PROJECT_NAME) === [ compile-deps     ]: installing build dependencies..."
-	@$(GO) get $(DEPS)
+deps-only:
+	@echo "=== $(PROJECT_NAME) === [ deps             ]: Installing package dependencies required by the project..."
 	@$(GOVENDOR) sync
 
-compile-only:
-	@echo "=== $(PROJECT_NAME) === [ compile          ]: building $(BINARY_NAME)..."
-	@$(GO) build -o $(BUILD_DIR)/$(BINARY_NAME) $(GO_FILES)
+validate: deps
+	@echo "=== $(PROJECT_NAME) === [ validate         ]: Validating source code running gometalinter..."
+	@$(GOMETALINTER) --config=.gometalinter.json ./...
 
-compile: compile-deps compile-only
+compile-only: deps-only
+	@echo "=== $(PROJECT_NAME) === [ compile          ]: building commands:"
+	@for b in $(BINS); do \
+		echo "=== $(PROJECT_NAME) === [ compile          ]:     $$b"; \
+		BUILD_FILES=`find $(SRCDIR)/cmd/$$b -type f -name "*.go"` ; \
+		$(GO) build -o $(BUILD_DIR)/$$b $$BUILD_FILES ; \
+	done
+
+compile: deps compile-only
 
 coverage:
 	@echo "=== $(PROJECT_NAME) === [ coverage         ]: generating coverage results..."
 	@rm -rf $(COVERAGE_DIR)/*
 	@for d in $(GO_PKGS); do \
 		pkg=`basename $$d` ;\
-		$(GO) test -coverprofile $(COVERAGE_DIR)/$$pkg.tmp $$d ;\
+		$(GO) test -tags 'unit integration' -coverprofile $(COVERAGE_DIR)/$$pkg.tmp $$d ;\
 	done
 	@echo 'mode: set' > $(COVERAGE_DIR)/coverage.out
-	@cat $(COVERAGE_DIR)/*.tmp | grep -v 'mode: set' >> $(COVERAGE_DIR)/coverage.out
+# || true to ignore grep return code if no matches (i.e. no tests written...)
+	@cat $(COVERAGE_DIR)/*.tmp | grep -v 'mode: set' >> $(COVERAGE_DIR)/coverage.out || true
 	@$(GO) tool cover -html=$(COVERAGE_DIR)/coverage.out -o $(COVERAGE_DIR)/coverage.html
-
-test-deps: compile-deps
-	@echo "=== $(PROJECT_NAME) === [ test-deps        ]: installing testing dependencies..."
-	@$(GO) get -v $(TEST_DEPS)
 
 test-unit:
 	@echo "=== $(PROJECT_NAME) === [ unit-test        ]: running unit tests..."
@@ -97,7 +94,26 @@ test-integration:
 	@echo "=== $(PROJECT_NAME) === [ integration-test ]: running integrtation tests..."
 	@$(GO) test -tags integration $(GO_PKGS)
 
+document:
+	@echo "=== $(PROJECT_NAME) === [ documentation    ]: Generating Godoc in Markdown..."
+	@for p in $(PACKAGES); do \
+		echo "=== $(PROJECT_NAME) === [ documentation    ]:     $$p"; \
+		$(GODOC) $$p > $$p/README.md ; \
+	done
+
 test-only: test-unit test-integration
 test: test-deps test-only
 
-.PHONY: all build clean coverage fmt lint vet validate-deps validate-only validate compile-deps compile-only compile test-deps test-unit test-integration test-only test
+check-version:
+ifdef GOOS
+ifneq "$(GOOS)" "$(NATIVEOS)"
+	$(error GOOS is not $(NATIVEOS). Cross-compiling is only allowed for 'clean', 'deps-only' and 'compile-only' targets)
+endif
+endif
+ifdef GOARCH
+ifneq "$(GOARCH)" "$(NATIVEARCH)"
+	$(error GOARCH variable is not $(NATIVEARCH). Cross-compiling is only allowed for 'clean', 'deps-only' and 'compile-only' targets)
+endif
+endif
+
+.PHONY: all build clean coverage document document-only document-deps fmt lint vet validate-deps validate-only validate compile-deps compile-only compile test-deps test-unit test-integration test-only test

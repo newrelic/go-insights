@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
@@ -13,32 +16,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 )
-
-// InsertClient contains all of the configuration required for inserts
-type InsertClient struct {
-	InsertKey   string
-	eventQueue  chan []byte
-	eventTimer  *time.Timer
-	flushQueue  chan bool
-	WorkerCount int
-	BatchSize   int
-	BatchTime   time.Duration
-	Compression Compression
-	Client
-	Statistics
-}
-
-// Statistics about the inserted data
-type Statistics struct {
-	EventCount         int64
-	FlushCount         int64
-	ByteCount          int64
-	FullFlushCount     int64
-	PartialFlushCount  int64
-	TimerExpiredCount  int64
-	InsightsRetryCount int64
-	HTTPErrorCount     int64
-}
 
 // NewInsertClient makes a new client for the user to send data with
 func NewInsertClient(insertKey string, accountID string) *InsertClient {
@@ -49,15 +26,15 @@ func NewInsertClient(insertKey string, accountID string) *InsertClient {
 	client.Compression = None
 
 	// Defaults
-	client.RequestTimeout = 10 * time.Second
-	client.RetryCount = 3
-	client.RetryWait = 5 * time.Second
+	client.RequestTimeout = DefaultInsertRequestTimeout
+	client.RetryCount = DefaultRetries
+	client.RetryWait = DefaultRetryWaitTime
 
 	// Defaults for buffered client.
 	// These are here so they can be overwritten before calling start().
-	client.WorkerCount = 1
-	client.BatchTime = 1 * time.Minute
-	client.BatchSize = 950
+	client.WorkerCount = DefaultWorkerCount
+	client.BatchTime = DefaultBatchTimeout
+	client.BatchSize = DefaultBatchEventCount
 
 	return client
 }
@@ -80,8 +57,20 @@ func (c *InsertClient) Start() error {
 
 	// TODO: errors returned from the call to watchdog()
 	// and batchWorker() are simply dropped on the floor.
-	go c.watchdog()
-	go c.batchWorker()
+	go func() {
+		err := c.watchdog()
+		if err != nil {
+			log.Errorf("Watchdog returned error: %v", err)
+		}
+	}()
+
+	go func() {
+		err := c.batchWorker()
+		if err != nil {
+			log.Errorf("Batch Worker returned error: %v", err)
+		}
+	}()
+
 	c.Logger.Infof("Insights client launched in daemon mode with endpoint %s", c.URL)
 
 	return nil
@@ -101,7 +90,12 @@ func (c *InsertClient) StartListener(inputChannel chan interface{}) (err error) 
 		return errors.New("Channel to listen is nil")
 	}
 
-	go c.queueWorker(inputChannel)
+	go func() {
+		err := c.queueWorker(inputChannel)
+		if err != nil {
+			log.Errorf("Queue Worker returned error: %v", err)
+		}
+	}()
 
 	c.Logger.Info("Insights client started channel listener")
 
@@ -146,7 +140,7 @@ func (c *InsertClient) PostEvent(data interface{}) error {
 	case []byte:
 		jsonData = data.([]byte)
 	case string:
-		jsonData = []byte(data.([]byte))
+		jsonData = []byte(data.(string))
 	default:
 		var jsonErr error
 		jsonData, jsonErr = json.Marshal(data)
@@ -172,10 +166,10 @@ func (c *InsertClient) PostEvent(data interface{}) error {
 // Flush gives the user a way to manually flush the queue in the foreground.
 // This is also used by watchdog when the timer expires.
 func (c *InsertClient) Flush() error {
-	c.Logger.Debug("Flushing insights client")
 	if c.flushQueue == nil {
 		return errors.New("Queueing not enabled for this client")
 	}
+	c.Logger.Debug("Flushing insights client")
 	atomic.AddInt64(&c.Statistics.FlushCount, 1)
 
 	c.flushQueue <- true
@@ -191,7 +185,10 @@ func (c *InsertClient) queueWorker(inputChannel chan interface{}) (err error) {
 	for {
 		select {
 		case msg := <-inputChannel:
-			c.EnqueueEvent(msg)
+			err = c.EnqueueEvent(msg)
+			if err != nil {
+				return err
+			}
 		}
 	}
 }
@@ -201,14 +198,18 @@ func (c *InsertClient) queueWorker(inputChannel chan interface{}) (err error) {
 // it has expired.
 //
 func (c *InsertClient) watchdog() (err error) {
+	if c.eventTimer == nil {
+		return errors.New("Invalid timer for watchdog()")
+	}
+
 	for {
 		select {
 		case <-c.eventTimer.C:
 			// Timer expired, and we have data, send it
 			atomic.AddInt64(&c.Statistics.TimerExpiredCount, 1)
 			c.Logger.Debug("Timeout expired, flushing queued events")
-			if flushErr := c.Flush(); flushErr != nil {
-				c.Logger.Errorf("Flush error: %s", flushErr.Error())
+			if err = c.Flush(); err != nil {
+				return
 			}
 			c.eventTimer.Reset(c.BatchTime)
 		}
@@ -296,16 +297,7 @@ func (c *InsertClient) sendEvents(events [][]byte) error {
 	buf.WriteString("]")
 	atomic.AddInt64(&c.Statistics.ByteCount, int64(buf.Len()))
 
-	if c.URL == nil {
-		// TODO: Somewhat of a hack for the test suite, should mock this
-		return nil
-	}
-
-	if postErr := c.jsonPostRequest(buf.Bytes()); postErr != nil {
-		return postErr
-	}
-
-	return nil
+	return c.jsonPostRequest(buf.Bytes())
 }
 
 // SetCompression allows modification of the compression type used in communication
@@ -315,4 +307,101 @@ func (c *InsertClient) SetCompression(compression Compression) {
 	// use gzip only for now
 	// c.Compression = compression
 	log.Debugf("Compression set: %d", c.Compression)
+}
+
+func (c *InsertClient) jsonPostRequest(body []byte) (err error) {
+	const prependText = "Inisghts Post: "
+
+	req, reqErr := c.generateJSONPostRequest(body)
+	if reqErr != nil {
+		return fmt.Errorf("%s: %v", prependText, reqErr)
+	}
+
+	client := &http.Client{Timeout: c.RequestTimeout}
+	resp, respErr := client.Do(req)
+	if respErr != nil {
+		return fmt.Errorf("%s: %v", prependText, respErr)
+	}
+	defer func() {
+		respErr = resp.Body.Close()
+		if respErr != nil && err == nil {
+			err = respErr // Don't mask previous errors
+		}
+	}()
+
+	if parseErr := c.parseResponse(resp); parseErr != nil {
+		return fmt.Errorf("%s: %v", prependText, parseErr)
+	}
+
+	return nil
+}
+
+func (c *InsertClient) generateJSONPostRequest(body []byte) (request *http.Request, err error) {
+	var readBuffer io.Reader
+	var encoding string
+
+	switch c.Compression {
+	case None:
+		c.Logger.Debug("Compression: None")
+		readBuffer = bytes.NewBuffer(body)
+	case Deflate:
+		c.Logger.Debug("Compression: Deflate")
+		readBuffer = nil
+	case Gzip:
+		c.Logger.Debug("Compression: Gzip")
+		readBuffer, err = gZipBuffer(body)
+		encoding = "gzip"
+	case Zlib:
+		c.Logger.Debug("Compression: Zlib")
+		readBuffer = nil
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to read body: %v", err)
+	}
+
+	request, err = http.NewRequest("POST", c.URL.String(), readBuffer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct request for: %s", body)
+	}
+
+	request.Header.Add("Content-Type", "application/json")
+	request.Header.Add("X-Insert-Key", c.InsertKey)
+	if encoding != "" {
+		request.Header.Add("Content-Encoding", encoding)
+	}
+
+	return request, nil
+}
+
+// parseResponse checks the Insert response for errors and reports the message
+// if an error happened
+func (c *InsertClient) parseResponse(response *http.Response) error {
+	body, readErr := ioutil.ReadAll(response.Body)
+	if readErr != nil {
+		return fmt.Errorf("Failed to read response body: %s", readErr.Error())
+	}
+
+	if response.StatusCode != 200 {
+		return fmt.Errorf("Bad response from Insights: %d \n\t%s", response.StatusCode, string(body))
+	}
+
+	c.Logger.Debugf("Response %d body: %s", response.StatusCode, body)
+
+	respJSON := insertResponse{}
+	if err := json.Unmarshal(body, &respJSON); err != nil {
+		return fmt.Errorf("Failed to unmarshal insights response: %v", err)
+	}
+
+	// Success
+	if response.StatusCode == 200 && respJSON.Success {
+		return nil
+	}
+
+	// Non 200 response (or 200 not success, if such a thing)
+	if respJSON.Error == "" {
+		respJSON.Error = "Error unknown"
+	}
+
+	return fmt.Errorf("%d: %s", response.StatusCode, respJSON.Error)
 }
