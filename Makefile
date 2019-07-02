@@ -46,7 +46,7 @@ clean:
 
 tools: check-version
 	@echo "=== $(PROJECT_NAME) === [ tools            ]: Installing tools required by the project..."
-	@$(GO) get $(GOTOOLS)
+	go get -u $(GOTOOLS)
 	@$(GOMETALINTER) --install
 
 tools-update: check-version

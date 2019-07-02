@@ -62,35 +62,29 @@ func (c *QueryClient) Query(nrqlQuery string, response interface{}) (err error) 
 		return errors.New("go-insights: Invalid query response can not be nil")
 	}
 
-	err = c.generateQueryURL(nrqlQuery)
+	err = c.queryRequest(nrqlQuery, response)
 	if err != nil {
 		return err
 	}
-
-	c.Logger.Debugf("Querying: %s", nrqlQuery)
-	err = c.queryRequest(response)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
 // queryRequest makes a NRQL query and returns the result in `queryResult`
 // which must be a pointer to a struct that the JSON package can unmarshall
-func (c *QueryClient) queryRequest(queryResult interface{}) (err error) {
+func (c *QueryClient) queryRequest(nrqlQuery string, queryResult interface{}) (err error) {
 	var request *http.Request
 	var response *http.Response
 
-	if len(c.URL.RawQuery) < 1 {
-		return fmt.Errorf("Query string can not be empty")
+	queryURL, err := c.generateQueryURL(nrqlQuery)
+	if err != nil {
+		return err
 	}
 
 	if queryResult == nil {
 		return errors.New("Must have pointer for result")
 	}
 
-	request, err = http.NewRequest("GET", c.URL.String(), nil)
+	request, err = http.NewRequest("GET", queryURL, nil)
 	if err != nil {
 		return err
 	}
@@ -126,19 +120,22 @@ func (c *QueryClient) queryRequest(queryResult interface{}) (err error) {
 }
 
 // generateQueryURL URL encodes the NRQL
-func (c *QueryClient) generateQueryURL(nrqlQuery string) error {
+func (c *QueryClient) generateQueryURL(nrqlQuery string) (string, error) {
 	if len(nrqlQuery) < minValidNRQLLength {
-		return fmt.Errorf("NRQL query is too short [%s]", nrqlQuery)
+		fmt.Println("Query was too short")
+		return "", fmt.Errorf("NRQL query is too short [%s]", nrqlQuery)
 	}
 
 	// Use a new set of Values to sanitize the query string
 	urlQuery := url.Values{}
 	urlQuery.Set("nrql", nrqlQuery)
-	c.URL.RawQuery = urlQuery.Encode() // Seems odd, but directly out of the docs for net/url
+	queryString := urlQuery.Encode()
 
-	log.Debugf("query url is: %s", c.URL)
+	queryURL := c.URL.String() + "?" + queryString
 
-	return nil
+	c.Logger.Debugf("query url is: %s", queryURL)
+
+	return queryURL, nil
 }
 
 // parseQueryResponse takes an HTTP response, make sure it is a valid response,
