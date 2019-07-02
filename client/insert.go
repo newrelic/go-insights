@@ -308,7 +308,7 @@ func (c *InsertClient) SetCompression(compression Compression) {
 }
 
 func (c *InsertClient) jsonPostRequest(body []byte) (err error) {
-	const prependText = "Inisghts Post: "
+	const prependText = "Insights Post: "
 
 	req, reqErr := c.generateJSONPostRequest(body)
 	if reqErr != nil {
