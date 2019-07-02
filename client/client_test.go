@@ -9,11 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const (
-	testKey = "testKey"
-	testID  = "12345"
-)
-
 func TestUseCustomURL(t *testing.T) {
 	c := &Client{
 		Logger: log.New(),

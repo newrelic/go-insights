@@ -36,11 +36,11 @@ func createQueryURL(accountID string) *url.URL {
 // Validate makes sure the QueryClient is configured correctly for use
 func (c *QueryClient) Validate() error {
 	if correct, _ := regexp.MatchString("api.newrelic.com/v1/accounts/[0-9]+/query", c.URL.String()); !correct {
-		return fmt.Errorf("Invalid query endpoint %s", c.URL)
+		return fmt.Errorf("invalid query endpoint %s", c.URL)
 	}
 
 	if len(c.QueryKey) < 1 {
-		return fmt.Errorf("Not a valid license key: %s", c.QueryKey)
+		return fmt.Errorf("not a valid license key: %s", c.QueryKey)
 	}
 	return nil
 }
@@ -81,7 +81,7 @@ func (c *QueryClient) queryRequest(nrqlQuery string, queryResult interface{}) (e
 	}
 
 	if queryResult == nil {
-		return errors.New("Must have pointer for result")
+		return errors.New("must have pointer for result")
 	}
 
 	request, err = http.NewRequest("GET", queryURL, nil)
@@ -96,7 +96,7 @@ func (c *QueryClient) queryRequest(nrqlQuery string, queryResult interface{}) (e
 
 	response, err = client.Do(request)
 	if err != nil {
-		err = fmt.Errorf("Failed query request for: %v", err)
+		err = fmt.Errorf("failed query request for: %v", err)
 		return
 	}
 	defer func() {
@@ -107,13 +107,13 @@ func (c *QueryClient) queryRequest(nrqlQuery string, queryResult interface{}) (e
 	}()
 
 	if response.StatusCode != http.StatusOK {
-		err = fmt.Errorf("Bad response code: %d", response.StatusCode)
+		err = fmt.Errorf("bad response code: %d", response.StatusCode)
 		return
 	}
 
 	err = c.parseResponse(response, queryResult)
 	if err != nil {
-		err = fmt.Errorf("Failed query: %v", err)
+		err = fmt.Errorf("failed query: %v", err)
 	}
 
 	return err
@@ -149,7 +149,7 @@ func (c *QueryClient) parseResponse(response *http.Response, parsedResponse inte
 	c.Logger.Debugf("Response %d body: %s", response.StatusCode, body)
 
 	if jsonErr := json.Unmarshal(body, parsedResponse); jsonErr != nil {
-		return fmt.Errorf("Unable to unmarshal query response: %v", jsonErr)
+		return fmt.Errorf("unable to unmarshal query response: %v", jsonErr)
 	}
 
 	return nil
