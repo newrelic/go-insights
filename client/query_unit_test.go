@@ -47,9 +47,10 @@ func TestQueryClientValidate(t *testing.T) {
 
 func TestGenerateQueryURL(t *testing.T) {
 	client := NewQueryClient(testKey, testID)
-
-	client.generateQueryURL(testNRQLQuery)
-	assert.Equal(t, testNRQLQueryEncoded, client.URL.RawQuery, "generateQueryURL should of set client.URL.RawQuery")
+	testURL := client.URL.String() + "?" + testNRQLQueryEncoded
+	query, err := client.generateQueryURL(testNRQLQuery)
+	assert.NoError(t, err)
+	assert.Equal(t, testURL, query, "generateQueryURL did not properly encode URL")
 }
 
 func TestQueryClientQuery(t *testing.T) {
@@ -101,7 +102,8 @@ func TestQueryClientQueryRequest(t *testing.T) {
 
 	// Empty NRQL
 	res = &QueryResponse{}
-	err = client.queryRequest(res)
+	query := ""
+	err = client.queryRequest(query, res)
 	assert.Error(t, err, "Empty NRQL query should fail")
 }
 
@@ -118,9 +120,9 @@ func TestQueryClientQueryRequest_decodeFailure(t *testing.T) {
 	assert.Equal(t, ts.URL, client.URL.String())
 
 	// NIL result pointer
-	err = client.generateQueryURL(testNRQLQuery)
+	query, err := client.generateQueryURL(testNRQLQuery)
 	assert.NoError(t, err)
-	err = client.queryRequest(nil)
+	err = client.queryRequest(query, nil)
 	assert.Error(t, err, "Empty result pointer should fail")
 }
 

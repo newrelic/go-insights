@@ -1,6 +1,6 @@
 # client
 --
-    import "github.com/newrelic/go-insights/client"
+    import "github.com/bpeckNR/go-insights/client"
 
 
 ## Usage

@@ -63,7 +63,9 @@ func (c *QueryClient) Query(nrqlQuery string, response interface{}) (err error) 
 	}
 
 	err = c.queryRequest(nrqlQuery, response)
-
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -75,7 +77,7 @@ func (c *QueryClient) queryRequest(nrqlQuery string, queryResult interface{}) (e
 
 	queryURL, err := c.generateQueryURL(nrqlQuery)
 	if err != nil {
-		return errors.New("Unable to generate query URL")
+		return err
 	}
 
 	if queryResult == nil {
@@ -120,21 +122,18 @@ func (c *QueryClient) queryRequest(nrqlQuery string, queryResult interface{}) (e
 // generateQueryURL URL encodes the NRQL
 func (c *QueryClient) generateQueryURL(nrqlQuery string) (string, error) {
 	if len(nrqlQuery) < minValidNRQLLength {
+		fmt.Println("Query was too short")
 		return "", fmt.Errorf("NRQL query is too short [%s]", nrqlQuery)
 	}
 
 	// Use a new set of Values to sanitize the query string
 	urlQuery := url.Values{}
 	urlQuery.Set("nrql", nrqlQuery)
-	queryString := urlQuery.Encode() // Seems odd, but directly out of the docs for net/url
+	queryString := urlQuery.Encode()
 
 	queryURL := c.URL.String() + "?" + queryString
 
-	if len(queryURL) < 1 {
-		return "", fmt.Errorf("Query string can not be empty")
-	}
-
-	log.Debugf("query url is: %s", queryURL)
+	c.Logger.Debugf("query url is: %s", queryURL)
 
 	return queryURL, nil
 }
