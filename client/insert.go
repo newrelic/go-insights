@@ -48,7 +48,7 @@ func createInsertURL(accountID string) *url.URL {
 // Start runs the insert client in batch mode.
 func (c *InsertClient) Start() error {
 	if c.eventQueue != nil {
-		return errors.New("Insights client already in daemon mode")
+		return errors.New("the Insights client is already in daemon mode")
 	}
 
 	c.eventQueue = make(chan []byte, c.BatchSize)
@@ -60,18 +60,18 @@ func (c *InsertClient) Start() error {
 	go func() {
 		err := c.watchdog()
 		if err != nil {
-			log.Errorf("Watchdog returned error: %v", err)
+			log.Errorf("watchdog returned error: %v", err)
 		}
 	}()
 
 	go func() {
 		err := c.batchWorker()
 		if err != nil {
-			log.Errorf("Batch Worker returned error: %v", err)
+			log.Errorf("batch worker returned error: %v", err)
 		}
 	}()
 
-	c.Logger.Infof("Insights client launched in daemon mode with endpoint %s", c.URL)
+	c.Logger.Infof("the Insights client has launched in daemon mode with endpoint %s", c.URL)
 
 	return nil
 }
@@ -87,17 +87,17 @@ func (c *InsertClient) StartListener(inputChannel chan interface{}) (err error) 
 		}
 	}
 	if inputChannel == nil {
-		return errors.New("Channel to listen is nil")
+		return errors.New("channel to listen is nil")
 	}
 
 	go func() {
 		err := c.queueWorker(inputChannel)
 		if err != nil {
-			log.Errorf("Queue Worker returned error: %v", err)
+			log.Errorf("queue worker returned error: %v", err)
 		}
 	}()
 
-	c.Logger.Info("Insights client started channel listener")
+	c.Logger.Info("the Insights client started channel listener")
 
 	return nil
 }
@@ -105,11 +105,11 @@ func (c *InsertClient) StartListener(inputChannel chan interface{}) (err error) 
 // Validate makes sure the InsertClient is configured correctly for use
 func (c *InsertClient) Validate() error {
 	if correct, _ := regexp.MatchString("collector.newrelic.com/v1/accounts/[0-9]+/events", c.URL.String()); !correct {
-		return fmt.Errorf("Invalid insert endpoint %s", c.URL)
+		return fmt.Errorf("invalid insert endpoint %s", c.URL)
 	}
 
 	if len(c.InsertKey) < 1 {
-		return fmt.Errorf("Not a valid license key: %s", c.InsertKey)
+		return fmt.Errorf("not a valid license key: %s", c.InsertKey)
 	}
 	return nil
 }
@@ -117,7 +117,7 @@ func (c *InsertClient) Validate() error {
 // EnqueueEvent handles the queueing. Only works in batch mode.
 func (c *InsertClient) EnqueueEvent(data interface{}) (err error) {
 	if c.eventQueue == nil {
-		return errors.New("Queueing not enabled for this client")
+		return errors.New("queueing not enabled for this client")
 	}
 
 	var jsonData []byte
@@ -136,22 +136,22 @@ func (c *InsertClient) EnqueueEvent(data interface{}) (err error) {
 func (c *InsertClient) PostEvent(data interface{}) error {
 	var jsonData []byte
 
-	switch data.(type) {
+	switch data := data.(type) {
 	case []byte:
-		jsonData = data.([]byte)
+		jsonData = data
 	case string:
-		jsonData = []byte(data.(string))
+		jsonData = []byte(data)
 	default:
 		var jsonErr error
 		jsonData, jsonErr = json.Marshal(data)
 		if jsonErr != nil {
-			return fmt.Errorf("Error marshaling event data: %s", jsonErr.Error())
+			return fmt.Errorf("error marshaling event data: %s", jsonErr.Error())
 		}
 	}
 
 	// Needs to handle array of events. maybe pull into separate validation func
 	if !strings.Contains(string(jsonData), "eventType") {
-		return fmt.Errorf("Event data must contain eventType field. %s", jsonData)
+		return fmt.Errorf("event data must contain eventType field. %s", jsonData)
 	}
 
 	c.Logger.Debugf("Posting to insights: %s", jsonData)
@@ -167,7 +167,7 @@ func (c *InsertClient) PostEvent(data interface{}) error {
 // This is also used by watchdog when the timer expires.
 func (c *InsertClient) Flush() error {
 	if c.flushQueue == nil {
-		return errors.New("Queueing not enabled for this client")
+		return errors.New("queueing not enabled for this client")
 	}
 	c.Logger.Debug("Flushing insights client")
 	atomic.AddInt64(&c.Statistics.FlushCount, 1)
@@ -182,7 +182,7 @@ func (c *InsertClient) Flush() error {
 // we don't block on EnqueueEvent
 //
 func (c *InsertClient) queueWorker(inputChannel chan interface{}) (err error) {
-	for {
+	for { //nolint:gosimple
 		select {
 		case msg := <-inputChannel:
 			err = c.EnqueueEvent(msg)
@@ -199,10 +199,10 @@ func (c *InsertClient) queueWorker(inputChannel chan interface{}) (err error) {
 //
 func (c *InsertClient) watchdog() (err error) {
 	if c.eventTimer == nil {
-		return errors.New("Invalid timer for watchdog()")
+		return errors.New("invalid timer for watchdog()")
 	}
 
-	for {
+	for { //nolint:gosimple
 		select {
 		case <-c.eventTimer.C:
 			// Timer expired, and we have data, send it
@@ -222,7 +222,7 @@ func (c *InsertClient) watchdog() (err error) {
 // in its own goroutine.
 //
 func (c *InsertClient) batchWorker() (err error) {
-	eventBuf := make([][]byte, c.BatchSize, c.BatchSize)
+	eventBuf := make([][]byte, c.BatchSize)
 	count := 0
 	for {
 		select {
@@ -230,12 +230,12 @@ func (c *InsertClient) batchWorker() (err error) {
 			eventBuf[count] = item
 			count++
 			if count >= c.BatchSize {
-				err = c.grabAndConsumeEvents(count, eventBuf)
+				c.grabAndConsumeEvents(count, eventBuf)
 				count = 0
 			}
 		case <-c.flushQueue:
 			if count > 0 {
-				err = c.grabAndConsumeEvents(count, eventBuf)
+				c.grabAndConsumeEvents(count, eventBuf)
 				count = 0
 			}
 		}
@@ -250,14 +250,14 @@ func (c *InsertClient) batchWorker() (err error) {
 // Even the last error (in the event of trying c.RetryCount times)
 // is dropped.
 //
-func (c *InsertClient) grabAndConsumeEvents(count int, eventBuf [][]byte) (err error) {
+func (c *InsertClient) grabAndConsumeEvents(count int, eventBuf [][]byte) {
 	if count < c.BatchSize-20 {
 		atomic.AddInt64(&c.Statistics.PartialFlushCount, 1) // Allow for some fuzz, although there should be none
 	} else {
 		atomic.AddInt64(&c.Statistics.FullFlushCount, 1)
 	}
 
-	saved := make([][]byte, count, count)
+	saved := make([][]byte, count)
 	for i := 0; i < count; i++ {
 		saved[i] = eventBuf[i]
 		eventBuf[i] = nil
@@ -275,8 +275,6 @@ func (c *InsertClient) grabAndConsumeEvents(count int, eventBuf [][]byte) (err e
 			}
 		}
 	}(count, saved)
-
-	return nil
 }
 
 // sendEvents accepts a slice of marshalled JSON and sends it to Insights
@@ -379,18 +377,18 @@ func (c *InsertClient) generateJSONPostRequest(body []byte) (request *http.Reque
 func (c *InsertClient) parseResponse(response *http.Response) error {
 	body, readErr := ioutil.ReadAll(response.Body)
 	if readErr != nil {
-		return fmt.Errorf("Failed to read response body: %s", readErr.Error())
+		return fmt.Errorf("failed to read response body: %s", readErr.Error())
 	}
 
 	if response.StatusCode != 200 {
-		return fmt.Errorf("Bad response from Insights: %d \n\t%s", response.StatusCode, string(body))
+		return fmt.Errorf("bad response from Insights: %d \n\t%s", response.StatusCode, string(body))
 	}
 
 	c.Logger.Debugf("Response %d body: %s", response.StatusCode, body)
 
 	respJSON := insertResponse{}
 	if err := json.Unmarshal(body, &respJSON); err != nil {
-		return fmt.Errorf("Failed to unmarshal insights response: %v", err)
+		return fmt.Errorf("failed to unmarshal insights response: %v", err)
 	}
 
 	// Success

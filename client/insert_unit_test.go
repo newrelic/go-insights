@@ -12,6 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	testKey = "testKey"
+	testID  = "12345"
+)
+
 /************************************************
  * General insert methods
  ************************************************/
@@ -159,8 +164,7 @@ func TestInsertGrabAndConsumeEvents_partial(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, ts.URL, client.URL.String())
 
-	err = client.grabAndConsumeEvents(len(testData)-1, testData)
-	assert.NoError(t, err)
+	client.grabAndConsumeEvents(len(testData)-1, testData)
 }
 
 func TestInsertGrabAndConsumeEvents_fullBatch(t *testing.T) {
@@ -178,8 +182,7 @@ func TestInsertGrabAndConsumeEvents_fullBatch(t *testing.T) {
 	assert.Equal(t, ts.URL, client.URL.String())
 
 	client.BatchSize = len(testData) - 1
-	err = client.grabAndConsumeEvents(len(testData)-1, testData)
-	assert.NoError(t, err)
+	client.grabAndConsumeEvents(len(testData)-1, testData)
 }
 
 func TestInsertPostEvent(t *testing.T) {
@@ -325,12 +328,12 @@ func TestEnqueueNonBuffer_bad(t *testing.T) {
 	enqueueErr := c.EnqueueEvent("{eventType: \"test\", blah: 1}")
 
 	assert.NotNil(t, enqueueErr)
-	assert.Equal(t, "Queueing not enabled for this client", enqueueErr.Error(), "Unknown error returned")
+	assert.Equal(t, "queueing not enabled for this client", enqueueErr.Error(), "Unknown error returned")
 
 	// Again no queue, so you can't flush it
 	flushErr := c.Flush()
 	assert.NotNil(t, flushErr)
-	assert.Equal(t, "Queueing not enabled for this client", flushErr.Error(), "Unknown error returned")
+	assert.Equal(t, "queueing not enabled for this client", flushErr.Error(), "Unknown error returned")
 }
 
 func TestNewInsertClientSetCompression(t *testing.T) {

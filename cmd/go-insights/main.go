@@ -85,6 +85,4 @@ func main() {
 	default:
 		log.Fatal("Unknown command")
 	}
-
-	return
 }
