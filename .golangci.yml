@@ -45,5 +45,7 @@ linters:
   disable:
     - dupl
     - gochecknoglobals
+    - godox
     - interfacer
+    - wsl
 
