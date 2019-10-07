@@ -42,6 +42,7 @@ func NewInsertClient(insertKey string, accountID string) *InsertClient {
 func createInsertURL(accountID string) *url.URL {
 	insightsURL, _ := url.Parse(insightsInsertURL)
 	insightsURL.Path = fmt.Sprintf("%s/%s/events", insightsURL.Path, accountID)
+
 	return insightsURL
 }
 
@@ -86,6 +87,7 @@ func (c *InsertClient) StartListener(inputChannel chan interface{}) (err error) 
 			return err
 		}
 	}
+
 	if inputChannel == nil {
 		return errors.New("channel to listen is nil")
 	}
@@ -111,16 +113,18 @@ func (c *InsertClient) Validate() error {
 	if len(c.InsertKey) < 1 {
 		return fmt.Errorf("not a valid license key: %s", c.InsertKey)
 	}
+
 	return nil
 }
 
 // EnqueueEvent handles the queueing. Only works in batch mode.
 func (c *InsertClient) EnqueueEvent(data interface{}) (err error) {
+	var jsonData []byte
+
 	if c.eventQueue == nil {
 		return errors.New("queueing not enabled for this client")
 	}
 
-	var jsonData []byte
 	atomic.AddInt64(&c.Statistics.EventCount, 1)
 
 	if jsonData, err = json.Marshal(data); err != nil {
@@ -143,6 +147,7 @@ func (c *InsertClient) PostEvent(data interface{}) error {
 		jsonData = []byte(data)
 	default:
 		var jsonErr error
+
 		jsonData, jsonErr = json.Marshal(data)
 		if jsonErr != nil {
 			return fmt.Errorf("error marshaling event data: %s", jsonErr.Error())
@@ -208,9 +213,11 @@ func (c *InsertClient) watchdog() (err error) {
 			// Timer expired, and we have data, send it
 			atomic.AddInt64(&c.Statistics.TimerExpiredCount, 1)
 			c.Logger.Debug("Timeout expired, flushing queued events")
+
 			if err = c.Flush(); err != nil {
 				return
 			}
+
 			c.eventTimer.Reset(c.BatchTime)
 		}
 	}
@@ -224,18 +231,22 @@ func (c *InsertClient) watchdog() (err error) {
 func (c *InsertClient) batchWorker() (err error) {
 	eventBuf := make([][]byte, c.BatchSize)
 	count := 0
+
 	for {
 		select {
 		case item := <-c.eventQueue:
 			eventBuf[count] = item
 			count++
+
 			if count >= c.BatchSize {
 				c.grabAndConsumeEvents(count, eventBuf)
+
 				count = 0
 			}
 		case <-c.flushQueue:
 			if count > 0 {
 				c.grabAndConsumeEvents(count, eventBuf)
+
 				count = 0
 			}
 		}
@@ -291,13 +302,17 @@ func (c *InsertClient) sendEvents(events [][]byte) error {
 	// Since we already marshalled all of the data into JSON, let's make a
 	// hand-crafted, artisanal JSON array
 	buf.WriteString("[")
+
 	eventCount := len(events) - 1
+
 	for e := range events {
 		buf.Write(events[e])
+
 		if e < eventCount {
 			buf.WriteString(",")
 		}
 	}
+
 	buf.WriteString("]")
 	atomic.AddInt64(&c.Statistics.ByteCount, int64(buf.Len()))
 
@@ -322,10 +337,12 @@ func (c *InsertClient) jsonPostRequest(body []byte) (err error) {
 	}
 
 	client := &http.Client{Timeout: c.RequestTimeout}
+
 	resp, respErr := client.Do(req)
 	if respErr != nil {
 		return fmt.Errorf("%s: %v", prependText, respErr)
 	}
+
 	defer func() {
 		respErr = resp.Body.Close()
 		if respErr != nil && err == nil {
@@ -341,22 +358,28 @@ func (c *InsertClient) jsonPostRequest(body []byte) (err error) {
 }
 
 func (c *InsertClient) generateJSONPostRequest(body []byte) (request *http.Request, err error) {
-	var readBuffer io.Reader
-	var encoding string
+	var (
+		readBuffer io.Reader
+		encoding   string
+	)
 
 	switch c.Compression {
 	case None:
 		c.Logger.Debug("Compression: None")
+
 		readBuffer = bytes.NewBuffer(body)
 	case Deflate:
 		c.Logger.Debug("Compression: Deflate")
+
 		readBuffer = nil
 	case Gzip:
 		c.Logger.Debug("Compression: Gzip")
+
 		readBuffer, err = gZipBuffer(body)
 		encoding = "gzip"
 	case Zlib:
 		c.Logger.Debug("Compression: Zlib")
+
 		readBuffer = nil
 	}
 
@@ -371,6 +394,7 @@ func (c *InsertClient) generateJSONPostRequest(body []byte) (request *http.Reque
 
 	request.Header.Add("Content-Type", "application/json")
 	request.Header.Add("X-Insert-Key", c.InsertKey)
+
 	if encoding != "" {
 		request.Header.Add("Content-Encoding", encoding)
 	}

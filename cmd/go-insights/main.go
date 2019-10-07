@@ -29,6 +29,7 @@ var (
 
 func main() {
 	kingpin.Version("Insights client version: " + version)
+
 	cmd := kingpin.Parse()
 
 	if *logDebug {
@@ -46,6 +47,7 @@ func main() {
 		if cli == nil {
 			log.Fatalf("Failed to create a %s client", cmd)
 		}
+
 		if len(*insightsURL) > 0 {
 			cli.UseCustomURL(*insightsURL)
 		}
@@ -53,6 +55,7 @@ func main() {
 		if err := cli.Validate(); err != nil {
 			log.Fatalf("Insert Client configuration validation failed: %s", err.Error())
 		}
+
 		data, fileErr := ioutil.ReadFile(*dataFile)
 		if fileErr != nil {
 			log.Errorf("Error reading event data file: %v", fileErr)
@@ -61,9 +64,9 @@ func main() {
 		if postErr := cli.PostEvent(data); postErr != nil {
 			log.Errorf("Insert error: %v", postErr)
 		}
-
 	case "query":
 		cli := client.NewQueryClient(*insightsKey, *accountID)
+
 		if len(*insightsURL) > 0 {
 			cli.UseCustomURL(*insightsURL)
 		}
@@ -71,6 +74,7 @@ func main() {
 		if err := cli.Validate(); err != nil {
 			log.Fatalf("Insert Client configuration validation failed: %s", err.Error())
 		}
+
 		result, queryErr := cli.QueryEvents(*queryString)
 		if queryErr != nil {
 			log.Fatal(queryErr)

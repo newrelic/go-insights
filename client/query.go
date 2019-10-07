@@ -30,6 +30,7 @@ func NewQueryClient(queryKey, accountID string) *QueryClient {
 func createQueryURL(accountID string) *url.URL {
 	insightsURL, _ := url.Parse(insightsQueryURL)
 	insightsURL.Path = fmt.Sprintf("%s/%s/query", insightsURL.Path, accountID)
+
 	return insightsURL
 }
 
@@ -42,14 +43,15 @@ func (c *QueryClient) Validate() error {
 	if len(c.QueryKey) < 1 {
 		return fmt.Errorf("not a valid license key: %s", c.QueryKey)
 	}
+
 	return nil
 }
 
 // QueryEvents initiates an Insights query, returns a response for parsing
 func (c *QueryClient) QueryEvents(nrqlQuery string) (response *QueryResponse, err error) {
 	response = &QueryResponse{}
-	err = c.Query(nrqlQuery, response)
-	if err != nil {
+
+	if err = c.Query(nrqlQuery, response); err != nil {
 		return nil, err
 	}
 
@@ -62,18 +64,20 @@ func (c *QueryClient) Query(nrqlQuery string, response interface{}) (err error) 
 		return errors.New("go-insights: Invalid query response can not be nil")
 	}
 
-	err = c.queryRequest(nrqlQuery, response)
-	if err != nil {
+	if err = c.queryRequest(nrqlQuery, response); err != nil {
 		return err
 	}
+
 	return nil
 }
 
 // queryRequest makes a NRQL query and returns the result in `queryResult`
 // which must be a pointer to a struct that the JSON package can unmarshall
 func (c *QueryClient) queryRequest(nrqlQuery string, queryResult interface{}) (err error) {
-	var request *http.Request
-	var response *http.Response
+	var (
+		request  *http.Request
+		response *http.Response
+	)
 
 	queryURL, err := c.generateQueryURL(nrqlQuery)
 	if err != nil {
@@ -99,6 +103,7 @@ func (c *QueryClient) queryRequest(nrqlQuery string, queryResult interface{}) (e
 		err = fmt.Errorf("failed query request for: %v", err)
 		return
 	}
+
 	defer func() {
 		respErr := response.Body.Close()
 		if respErr != nil && err == nil {
@@ -129,8 +134,8 @@ func (c *QueryClient) generateQueryURL(nrqlQuery string) (string, error) {
 	// Use a new set of Values to sanitize the query string
 	urlQuery := url.Values{}
 	urlQuery.Set("nrql", nrqlQuery)
-	queryString := urlQuery.Encode()
 
+	queryString := urlQuery.Encode()
 	queryURL := c.URL.String() + "?" + queryString
 
 	c.Logger.Debugf("query url is: %s", queryURL)
