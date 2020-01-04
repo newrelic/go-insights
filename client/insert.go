@@ -280,6 +280,7 @@ func (c *InsertClient) grabAndConsumeEvents(count int, eventBuf [][]byte) {
 				break
 			}
 		}
+		atomic.AddInt64(&c.Statistics.ProcessedEventCount, int64(count))
 	}(count, saved)
 }
 
