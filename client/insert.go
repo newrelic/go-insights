@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -322,8 +323,9 @@ func (c *InsertClient) jsonPostRequest(body []byte) (err error) {
 		return fmt.Errorf("%s: %v", prependText, reqErr)
 	}
 
-	client := &http.Client{Timeout: c.RequestTimeout}
-	resp, respErr := client.Do(req)
+	ctx, cancel := context.WithTimeout(req.Context(), c.RequestTimeout)
+	defer cancel()
+	resp, respErr := http.DefaultClient.Do(req.WithContext(ctx))
 	if respErr != nil {
 		return fmt.Errorf("%s: %v", prependText, respErr)
 	}
