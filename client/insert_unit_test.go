@@ -101,6 +101,27 @@ func TestJSONPostRequest_badresponse(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestJSONPostRequest_timeout(t *testing.T) {
+	var err error
+
+	timeout := 100 * time.Millisecond
+	// Create a test server to query againt
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(timeout * 2)
+		testInsertHandlerSuccess.ServeHTTP(w, r)
+	}))
+	defer ts.Close()
+
+	client := NewInsertClient(testKey, testID) // Create test client
+	client.RequestTimeout = timeout
+	client.URL, err = client.URL.Parse(ts.URL) // Override the URL
+	assert.NoError(t, err)
+	assert.Equal(t, ts.URL, client.URL.String())
+
+	err = client.jsonPostRequest(testInsertJSON[0])
+	assert.Error(t, err)
+}
+
 func TestInsertClientParseResponse(t *testing.T) {
 	var err error
 	var response *http.Response
