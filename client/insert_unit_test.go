@@ -133,6 +133,7 @@ func TestInsertClientParseResponse(t *testing.T) {
 	respGen = httptest.NewRecorder()
 	respGen.WriteHeader(http.StatusServiceUnavailable)
 	_, err = respGen.Write(testInsertResponseJSON["failure"])
+	assert.NoError(t, err)
 	response = respGen.Result()
 	err = client.parseResponse(response)
 	assert.Error(t, err)
@@ -141,6 +142,7 @@ func TestInsertClientParseResponse(t *testing.T) {
 	respGen = httptest.NewRecorder()
 	respGen.WriteHeader(http.StatusOK)
 	_, err = respGen.Write(testInsertJSON[0]) // Not a valid JSON response
+	assert.NoError(t, err)
 	response = respGen.Result()
 	err = client.parseResponse(response)
 	assert.Error(t, err)
@@ -149,6 +151,7 @@ func TestInsertClientParseResponse(t *testing.T) {
 	respGen = httptest.NewRecorder()
 	respGen.WriteHeader(http.StatusOK)
 	_, err = respGen.Write(testInsertResponseJSON["success"])
+	assert.NoError(t, err)
 	response = respGen.Result()
 	err = client.parseResponse(response)
 	assert.NoError(t, err)
