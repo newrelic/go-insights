@@ -11,9 +11,10 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-const version = "1.0.0"
-
 var (
+	// Version of the command (injected by build process)
+	Version = "dev"
+
 	insightsKey = kingpin.Flag("key", "Your insights key.").Short('k').Required().String()
 	accountID   = kingpin.Flag("id", "Your New Relic account ID").Short('i').Required().String()
 	insightsURL = kingpin.Flag("url", "Custom insights endpoint.").Short('u').String()
@@ -28,7 +29,7 @@ var (
 )
 
 func main() {
-	kingpin.Version("Insights client version: " + version)
+	kingpin.Version("Insights client version: " + Version)
 	cmd := kingpin.Parse()
 
 	if *logDebug {
