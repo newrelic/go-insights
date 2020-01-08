@@ -1,7 +1,11 @@
 # New Relic Insights Client
 A Go library for interacting with insights.
 
-[![Build Status](https://travis-ci.org/newrelic/go-insights.svg?branch=master)](https://travis-ci.org/newrelic/go-insights)
+[![CircleCI](https://circleci.com/gh/newrelic/go-insights.svg?style=svg)](https://circleci.com/gh/newrelic/go-insights)
+[![Go Report Card](https://goreportcard.com/badge/github.com/newrelic/go-insights?style=flat-square)](https://goreportcard.com/report/github.com/newrelic/go-insights)
+[![GoDoc](https://godoc.org/github.com/newrelic/go-insights?status.svg)](https://godoc.org/github.com/newrelic/go-insights)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/newrelic/go-insights/blob/master/LICENSE)
+[![Release](https://img.shields.io/github/release/newrelic/go-insights?style=flat-square)](https://github.com/newrelic/go-insights/releases/latest)
 
 
 ## Disclaimer
