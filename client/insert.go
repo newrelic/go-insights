@@ -117,6 +117,13 @@ func (c *InsertClient) Validate() error {
 
 // EnqueueEvent handles the queueing. Only works in batch mode.
 func (c *InsertClient) EnqueueEvent(data interface{}) (err error) {
+	return c.EnqueueEventContext(context.Background(), data)
+}
+
+// EnqueueEventContext handles the queueing. Only works in batch mode. If you wish to be able to avoid blocking
+// forever until the event can be queued, provide a ctx with a deadline or timeout as this function will
+// bail when ctx.Done() is closed and return and error.
+func (c *InsertClient) EnqueueEventContext(ctx context.Context, data interface{}) (err error) {
 	if c.eventQueue == nil {
 		return errors.New("queueing not enabled for this client")
 	}
@@ -128,9 +135,12 @@ func (c *InsertClient) EnqueueEvent(data interface{}) (err error) {
 		return err
 	}
 
-	c.eventQueue <- jsonData
-
-	return err
+	select {
+	case c.eventQueue <- jsonData:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // PostEvent allows sending a single event directly.
