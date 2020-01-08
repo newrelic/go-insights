@@ -3,6 +3,7 @@
 package client
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -298,6 +299,36 @@ func TestNewInsertClientEnqueueEvent_good(t *testing.T) {
 	}{1}
 	err := client.EnqueueEvent(event)
 	assert.NoError(t, err)
+}
+
+func TestNewInsertClientEnqueueEventContext_good(t *testing.T) {
+	client := NewInsertClient(testKey, testID)
+
+	assert.NotNil(t, client)
+	client.eventQueue = make(chan []byte, 1)
+
+	event := struct {
+		Test int
+	}{1}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancel()
+	err := client.EnqueueEventContext(ctx, event)
+	assert.NoError(t, err)
+}
+
+func TestNewInsertClientEnqueueEventContext_timeout(t *testing.T) {
+	client := NewInsertClient(testKey, testID)
+
+	assert.NotNil(t, client)
+	client.eventQueue = make(chan []byte)
+
+	event := struct {
+		Test int
+	}{1}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancel()
+	err := client.EnqueueEventContext(ctx, event)
+	assert.Error(t, err)
 }
 
 func TestNewInsertClientFlush_good(t *testing.T) {
