@@ -104,7 +104,7 @@ type QueryClient struct {
 type QueryResponse struct {
 	Results     []map[string]interface{} `json:"results"`
 	Facets      []map[string]interface{} `json:"facets"`
-	TotalResult map[string]interface{}   `json:"totalResults"`
+	TotalResult map[string]interface{}   `json:"totalResult"`
 	Metadata    QueryMetadata            `json:"metadata"`
 }
 
