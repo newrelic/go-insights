@@ -203,9 +203,10 @@ QueryMetadata used to decode the JSON response metadata from Insights
 
 ```go
 type QueryResponse struct {
-	Results  []map[string]interface{} `json:"results"`
-	Facets   []map[string]interface{} `json:"facets"`
-	Metadata QueryMetadata            `json:"metadata"`
+	Results     []map[string]interface{} `json:"results"`
+	Facets      []map[string]interface{} `json:"facets"`
+	TotalResult map[string]interface{}   `json:"totalResult"`
+	Metadata    QueryMetadata            `json:"metadata"`
 }
 ```
 
