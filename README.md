@@ -1,4 +1,7 @@
 # New Relic Insights Client
+
+**NOTICE:** This library is now deprecated in favor of [newrelic-client-go](https://github.com/newrelic/newrelic-client-go) and will be archived soon.
+
 A Go library for interacting with insights.
 
 [![CircleCI](https://circleci.com/gh/newrelic/go-insights.svg?style=svg)](https://circleci.com/gh/newrelic/go-insights)
